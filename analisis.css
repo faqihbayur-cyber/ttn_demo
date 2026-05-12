@@ -1,0 +1,41 @@
+.placeholder-view{
+
+  min-height:100vh;
+
+  display:flex;
+
+  flex-direction:column;
+
+  align-items:center;
+
+  justify-content:center;
+
+  text-align:center;
+
+  padding:20px;
+}
+
+.placeholder-view i{
+
+  font-size:60px;
+
+  color:#B08A5C;
+
+  margin-bottom:20px;
+}
+
+.placeholder-view h2{
+
+  font-size:26px;
+
+  color:#4b3f36;
+
+  margin-bottom:10px;
+}
+
+.placeholder-view p{
+
+  font-size:14px;
+
+  color:#8b7d74;
+}

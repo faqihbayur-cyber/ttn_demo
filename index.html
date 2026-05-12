@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width,
+  initial-scale=1,
+  maximum-scale=1,
+  user-scalable=no,
+  viewport-fit=cover"
+/>
+<meta name="theme-color" content="#b3874f">
+
+<title>Marketing TTN</title>
+
+<link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="home.css">
+<link rel="stylesheet" href="profil.css">
+<link rel="stylesheet" href="input.css">
+<link rel="stylesheet" href="customer.css">
+<link rel="stylesheet" href="analisis.css">
+
+<link
+rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+/>
+
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===== HOME VIEW ===== -->
+  <div class="view active" id="view-home">
+  
+    <div class="page-content">
+  
+      <!-- HEADER -->
+      <div class="headerHome"></div>
+  
+      <!-- CARD MARKETING -->
+      <div id="marketingList">
+  
+        <div class="marketing-card">
+  
+          <!-- AVATAR -->
+          <div class="avatar" id="homeAvatar">
+            <div class="avatar-inisial">
+              A
+            </div>
+          </div>
+  
+          <!-- INFO -->
+          <div class="marketing-info">
+  
+            <div class="nama"
+                 id="homeNama">
+              Loading...
+            </div>
+  
+            <div class="motivasi"
+                 id="homeMotivasi">
+              Memuat motivasi Anda
+            </div>
+  
+            <div class="kantor"
+                 id="homeKantor">
+  
+              <svg class="kantor-icon"
+                   viewBox="0 0 24 24">
+  
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13
+                c0-3.87-3.13-7-7-7zm0 9.5
+                c-1.38 0-2.5-1.12-2.5-2.5
+                S10.62 6.5 12 6.5
+                14.5 7.62 14.5 9
+                13.38 11.5 12 11.5z"/>
+  
+              </svg>
+  
+              Kantor Cabang
+  
+            </div>
+  
+          </div>
+  
+          <!-- TANGGAL -->
+          <div class="tanggal-waktu">
+  
+            <div class="tanggal"
+                 id="homeTanggal">
+              Senin, 1 Januari 2026
+            </div>
+  
+            <div class="waktu"
+                 id="homeWaktu">
+              18:00
+            </div>
+  
+          </div>
+  
+        </div>
+  
+      </div>
+      
+      <!-- MENU HOME -->
+      <div class="home-menu">
+      
+        <button
+          class="menu-btn"
+          onclick="showView('input')">
+      
+          <i class="fa-solid fa-pen-to-square"></i>
+          <span>Input Data</span>
+      
+        </button>
+      
+      
+        <button
+          class="menu-btn"
+          onclick="showView('customer')">
+      
+          <i class="fa-solid fa-users"></i>
+          <span>Customer</span>
+      
+        </button>
+      
+      
+        <button
+          class="menu-btn"
+          onclick="showView('analisis')">
+      
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Analisis</span>
+      
+        </button>
+      
+      </div>
+      
+    </div>
+  
+  </div>
+  
+  <!-- ===== INPUT VIEW ===== -->
+  <div class="view" id="view-input">
+  
+    <div class="input-page">
+  
+      <!-- HEADER -->
+      <div class="input-header">
+  
+        <!-- HARI -->
+        <div
+          class="input-hari"
+          id="inputHari">
+  
+          Senin
+  
+        </div>
+  
+        <!-- BAWA BARANG -->
+        <div
+          class="input-bawa-container"
+          id="inputBawaBarang">
+        
+          <!-- AUTO RENDER -->
+        
+        </div>
+        
+        <!-- DETAIL BUTTON -->
+        <div class="input-header-action">
+        
+          <button
+            class="input-detail-btn"
+            id="inputDetailBtn">
+        
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2">
+        
+              <circle
+                cx="12"
+                cy="12"
+                r="10">
+              </circle>
+        
+              <path d="M12 16v-4"></path>
+        
+              <path d="M12 8h.01"></path>
+        
+            </svg>
+        
+          </button>
+        
+        </div>
+  
+      </div>
+  
+      <!-- =========================
+      CUSTOMER WRAPPER
+      ========================= -->
+      <div class="input-customer-wrapper">
+      
+        <!-- TITLE 
+        <div class="input-section-title">
+          Customer Hari Ini
+        </div>
+        -->
+        
+        <!-- =========================
+        BOTTOM PROGRESS BAR
+        ========================= -->
+        <div
+          class="input-progress-bar"
+          id="inputProgressBar">
+        
+          <!-- HANDLE -->
+          <button
+            class="input-progress-toggle"
+            id="inputProgressToggle">
+        
+            <div class="input-progress-line"></div>
+        
+          </button>
+        
+          <!-- CONTENT -->
+          <div
+            class="input-progress-content"
+            id="inputProgressContent">
+        
+            <!-- SEARCH -->
+            <input
+              type="text"
+              id="inputSearchCustomer"
+              class="input-search-customer"
+              placeholder="Cari customer..."
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+            >
+        
+            <!-- TEXT -->
+            <div
+              class="input-progress-text"
+              id="inputProgressText">
+        
+              0 / 0 Toko
+        
+            </div>
+        
+            <!-- PIPE -->
+            <div class="input-progress-track">
+        
+              <div
+                class="input-progress-fill"
+                id="inputProgressFill">
+              </div>
+        
+            </div>
+        
+          </div>
+        
+        </div>    
+        <!-- LIST -->
+        <div
+          class="input-list-customer"
+          id="listCustomer">
+      
+          <!-- AUTO RENDER -->
+      
+        </div>
+      
+      </div>
+  
+    </div>
+    
+    <!-- =========================
+    POPUP INPUT DATA
+    ========================= -->
+    <div
+      class="popup-input-overlay"
+      id="popupInputOverlay">
+    
+      <div
+        class="popup-input-sheet"
+        id="popupInputSheet">
+    
+        <!-- DRAG -->
+        <div class="popup-drag"></div>
+    
+        <!-- HEADER -->
+        <div class="popup-input-header">
+        
+          <div
+            class="popup-summary-card">
+        
+            <!-- NAMA -->
+            <div
+              class="popup-input-nama"
+              id="popupInputNama">
+        
+              Nama Customer
+        
+            </div>
+        
+            <!-- DATA KEMARIN -->
+            <div
+              class="popup-data-kemarin"
+              id="popupDataKemarin">
+        
+              <!-- AUTO RENDER -->
+        
+            </div>
+        
+            <!-- TOTAL -->
+            <div class="popup-total-card">
+        
+              <div
+                class="popup-total-value"
+                id="previewPay">
+        
+                Rp0
+        
+              </div>
+        
+            </div>
+        
+          </div>
+        
+        </div>
+        
+        
+        <!-- BODY -->
+        <div
+          class="popup-input-body"
+          id="popupInputBarang">
+        
+          <!-- AUTO RENDER -->
+        
+        </div>
+        
+        
+        <!-- BUTTON -->
+        <button
+          class="popup-submit-btn"
+          id="popupSubmitBtn"
+          disabled
+        >
+        
+          Kirim
+        
+        </button>
+    
+      </div>
+    
+    </div>
+
+    <!-- =========================
+    POPUP INPUT FD
+    ========================= -->
+    <div
+      class="popup-input-overlay"
+      id="popupInputFdOverlay">
+    
+      <div
+        class="popup-input-sheet"
+        id="popupInputFdSheet">
+    
+        <!-- DRAG -->
+        <div class="popup-drag"></div>
+    
+        <!-- HEADER -->
+        <div class="popup-input-header">
+    
+          <div class="popup-summary-card">
+    
+            <div
+              class="popup-input-nama"
+              id="popupInputFdNama">
+    
+              Nama Customer
+    
+            </div>
+    
+          </div>
+    
+        </div>
+    
+        <!-- BODY -->
+        <div
+          class="popup-input-body"
+          id="popupInputFdBody">
+    
+          <!-- AUTO RENDER -->
+    
+        </div>
+    
+        <!-- BUTTON -->
+        <button
+          class="popup-submit-btn"
+          id="popupInputFdSubmit">
+    
+          Simpan
+    
+        </button>
+    
+      </div>
+    
+    </div>  
+    
+    <!-- =========================
+    PREVIEW FOTO CUSTOMER
+    ========================= -->
+    <div
+      class="preview-foto-overlay"
+      id="previewFotoOverlay"
+    >
+    
+      <img
+        id="previewFotoImg"
+        class="preview-foto-img"
+      >
+    
+    </div>  
+    
+    <!-- =========================
+    POPUP WARNING
+    ========================= -->
+    <div
+      class="popup-warning-overlay"
+      id="popupWarningOverlay">
+    
+      <div class="popup-warning-card">
+    
+        <div class="popup-warning-icon">
+          ⚠
+        </div>
+    
+        <div class="popup-warning-title">
+          Data Berbeda
+        </div>
+    
+        <div
+          class="popup-warning-text"
+          id="popupWarningText">
+    
+          Data berbeda, coba cek lagi
+          atau lanjutkan simpan
+    
+        </div>
+    
+        <div class="popup-warning-actions">
+    
+          <button
+            class="popup-warning-btn cancel"
+            id="popupWarningCancel">
+    
+            Cek Lagi
+    
+          </button>
+    
+          <button
+            class="popup-warning-btn submit"
+            id="popupWarningSubmit">
+    
+            Lanjut Simpan
+    
+          </button>
+    
+        </div>
+    
+      </div>
+    
+    </div>
+    
+    <!-- =========================
+    POPUP DETAIL HEADER
+    ========================= -->
+    <div
+      class="popup-detail-overlay"
+      id="popupHeaderDetailOverlay">
+    
+      <div
+        class="popup-detail-sheet"
+        id="popupHeaderDetailSheet">
+    
+        <!-- DRAG -->
+        <div class="popup-drag"></div>
+    
+        <!-- HEADER -->
+        <div class="popup-detail-header">
+    
+          <div class="popup-detail-title">
+            Detail Hari Ini
+          </div>
+    
+          <div class="popup-detail-subtitle">
+            Ringkasan data harian
+          </div>
+    
+        </div>
+    
+        <!-- BODY -->
+        <div
+          class="popup-detail-list"
+          id="popupHeaderDetailBody">
+    
+          <!-- AUTO RENDER -->
+    
+        </div>
+    
+      </div>
+    
+    </div>
+    
+  </div>
+  
+  <!-- ===== CUSTOMER VIEW ===== -->
+  <div class="view" id="view-customer">
+  
+    <div class="customer-page">
+    
+      <!-- TITLE -->
+      <div class="customer-title">
+        Data Customer
+      </div>
+    
+    
+      <!-- CARD -->
+      <div class="customer-card">
+    
+        <!-- HARI -->
+        <div class="customer-item">
+        
+          <div class="customer-label">
+            Hari
+          </div>
+        
+          <div class="hari-dropdown">
+        
+            <!-- SELECTED -->
+            <div
+              class="customer-value hari-selected"
+              id="customerHari">
+        
+              Senin
+        
+              <i class="fa-solid fa-chevron-down"></i>
+        
+            </div>
+        
+        
+            <!-- DROPDOWN -->
+            <div
+              class="hari-menu"
+              id="hariMenu">
+        
+              <!-- AUTO RENDER -->
+        
+            </div>
+        
+          </div>
+        
+        </div>
+    
+    
+        <!-- TOTAL -->
+        <div class="customer-item">
+        
+          <div class="customer-label">
+            Jumlah Customer
+          </div>
+        
+          <div class="customer-total">
+        
+            <span id="customerTotal">
+              0
+            </span>
+        
+            Customer
+        
+          </div>
+        
+        </div>
+        
+        
+        <!-- STATS -->
+        <div class="customer-stats">
+        
+          <!-- BARU -->
+          <div class="customer-stat-card">
+        
+            <div class="customer-stat-title">
+              Cust Baru
+            </div>
+        
+            <div
+              class="customer-stat-value new"
+              id="customerBaru">
+        
+              0
+        
+            </div>
+        
+          </div>
+        
+        
+          <!-- LAMA -->
+          <div class="customer-stat-card">
+        
+            <div class="customer-stat-title">
+              Cust Lama
+            </div>
+        
+            <div
+              class="customer-stat-value old"
+              id="customerLama">
+        
+              0
+        
+            </div>
+        
+          </div>
+        
+        </div>
+    
+    
+        <div class="customer-action-row">
+        
+          <!-- BUTTON -->
+          <button
+            class="btn-input-customer"
+            onclick="inputCustomer()">
+        
+            <i class="fa-solid fa-plus"></i>
+        
+            Input Customer
+        
+          </button>
+        
+          <!-- RELOAD -->
+          <button
+            class="btn-reload-customer"
+            onclick="reloadCustomerData()">
+        
+            <i class="fa-solid fa-rotate-right"></i>
+        
+            Reload Data
+        
+          </button>
+        
+        </div>    
+        <!-- SEARCH -->
+        <div class="customer-search">
+        
+          <i class="fa-solid fa-search"></i>
+        
+          <input
+            type="text"
+            id="searchCustomer"
+            placeholder="Cari customer..."
+            autocomplete="off"
+          >
+        
+          <!-- SUGGEST -->
+          <div
+            class="customer-suggest"
+            id="customerSuggest">
+          </div>
+        
+        </div>
+        
+        <!-- LIST CUSTOMER -->
+        <div
+          class="customer-list"
+          id="customerList">
+        
+        </div>
+        
+      </div>
+    
+    </div>
+    
+    <!-- =========================
+    POPUP INPUT CUSTOMER
+    ========================= -->
+    <div
+      class="popup-overlay"
+      id="popupCustomer">
+    
+      <div
+        class="popup-content"
+        id="popupContent">
+    
+        <!-- HANDLE -->
+        <div class="popup-handle">
+        </div>
+    
+        <!-- TITLE -->
+        <div class="popup-title">
+          Input Customer
+        </div>
+    
+        <!-- NAMA -->
+        <div class="popup-group">
+    
+          <label>
+            Nama Customer
+          </label>
+    
+          <input
+            type="text"
+            id="inputNamaCustomer"
+            placeholder="Masukkan nama customer"
+          >
+    
+        </div>
+    
+        <!-- AUTO RENDER FORM -->
+        <div id="stokContainer">
+        </div>
+    
+      </div>
+    
+    </div>
+    
+    
+  </div>
+    <!-- =========================
+    POPUP CATATAN CUSTOMER
+    ========================= -->
+    <div
+      class="popup-overlay"
+      id="popupCatatanCustomer">
+    
+      <div
+        class="popup-content popup-catatan-content">
+    
+        <!-- HANDLE -->
+        <div class="popup-handle"></div>
+    
+        <!-- NAMA -->
+        <div
+          class="popup-catatan-title"
+          id="popupCatatanNama">
+    
+          Nama Customer
+    
+        </div>
+    
+        <!-- UPDATE -->
+        <div
+          class="popup-catatan-update"
+          id="popupCatatanUpdate">
+    
+          Update: -
+    
+        </div>
+    
+        <!-- FORM -->
+        <div class="popup-group">
+    
+          <label>
+            Catatan
+          </label>
+    
+          <textarea
+            id="popupCatatanText"
+            placeholder="Masukkan catatan customer"
+            rows="6"></textarea>
+    
+        </div>
+    
+        <!-- BUTTON -->
+        <button
+          class="btn-simpan-customer"
+          id="btnSimpanCatatan">
+    
+          <span id="btnSimpanCatatanText">
+            Simpan
+          </span>
+    
+        </button>
+    
+      </div>
+    
+    </div>    
+  
+  <!-- ===== ANALISIS VIEW ===== -->
+  <div class="view" id="view-analisis">
+  
+    <div class="placeholder-view">
+  
+      <i class="fa-solid fa-chart-line"></i>
+  
+      <h2>Analisis</h2>
+  
+      <p>Halaman analisis marketing</p>
+  
+    </div>
+  
+  </div>
+
+  <!-- ===== PROFIL VIEW ===== -->
+  <div class="view" id="view-profil">
+
+    <div class="page-content">
+
+      <div class="profil-header">
+        <div class="profil-avatar">
+          A
+        </div>
+
+        <div class="profil-name">
+          Administrator
+        </div>
+
+        <div class="profil-email">
+          admin@ttn.com
+        </div>
+      </div>
+
+      <button id="btnLogout" class="logout-btn">
+        Logout
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- ===== NAVBAR ===== -->
+<div class="navbar-bottom">
+
+  <div class="nav-active-circle"
+       id="navCircle"></div>
+
+
+  <div class="nav-item active"
+       data-index="0"
+       data-view="home">
+
+    <i class="fa-solid fa-house"></i>
+
+    <span>Home</span>
+
+  </div>
+
+
+  <div class="nav-item"
+       data-index="1"
+       data-view="profil">
+
+    <i class="fa-solid fa-user"></i>
+
+    <span>Profil</span>
+
+  </div>
+
+</div>
+
+
+<script type="module" src="index.js"></script>
+<script type="module" src="home.js"></script>
+<script src="input.js"></script>
+<script src="customer.js"></script>
+<script src="analisis.js"></script>
+<script type="module" src="profil.js"></script>
+
+</body>
+</html>

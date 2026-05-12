@@ -1,0 +1,676 @@
+/* =========================
+CUSTOMER PAGE
+========================= */
+.customer-page{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:20px 0 0;
+}
+
+/* =========================
+TITLE
+========================= */
+.customer-title{
+  text-align:center;
+  font-size:24px;
+  font-weight:700;
+  color:#4b3f36;
+  margin-bottom:24px;
+}
+
+/* =========================
+CARD
+========================= */
+.customer-card{
+  background:#fff;
+  border-radius:24px;
+  padding:22px;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.08);
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  min-height:0;
+}
+/* ITEM */
+.customer-item{
+  margin-bottom:22px;
+}
+/* LABEL */
+.customer-label{
+  font-size:13px;
+  color:#8b7d74;
+  margin-bottom:8px;
+}
+/* VALUE */
+.customer-value{
+  font-size:22px;
+  font-weight:700;
+  color:#B08A5C;
+}
+/* TOTAL */
+.customer-total{
+  font-size:28px;
+  font-weight:700;
+  color:#4b3f36;
+}
+.customer-total span{
+  color:#B08A5C;
+}
+
+/* =========================
+CUSTOMER STATS
+========================= */
+.customer-stats{
+  display:grid;
+  grid-template-columns:
+    repeat(2,1fr);
+  gap:12px;
+  margin-bottom:18px;
+}
+/* CARD */
+.customer-stat-card{
+  background:#f8f6f2;
+  border-radius:18px;
+  padding:14px;
+  text-align:center;
+}
+/* TITLE */
+.customer-stat-title{
+  font-size:12px;
+  color:#8b7d74;
+  margin-bottom:6px;
+}
+/* VALUE */
+.customer-stat-value{
+  font-size:24px;
+  font-weight:700;
+}
+/* BARU */
+.customer-stat-value.new{
+  color:#2eaf62;
+}
+/* LAMA */
+.customer-stat-value.old{
+  color:#B08A5C;
+}
+/* =========================
+   WRAPPER BUTTON
+========================= */
+.customer-action-row{
+  display:flex;
+  gap:10px;
+  margin-top:14px;
+}
+
+
+/* =========================
+   BUTTON BASE
+========================= */
+.btn-input-customer,
+.btn-reload-customer{
+  flex:1;
+  height:52px;
+  border:none;
+  border-radius:18px;
+  color:#fff;
+  font-size:15px;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  cursor:pointer;
+  transition:0.18s ease;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.08);
+}
+
+
+/* INPUT CUSTOMER */
+.btn-input-customer{
+  background:#B08A5C;
+}
+
+
+/* RELOAD */
+.btn-reload-customer{
+  background:#2F80ED;
+}
+
+
+/* ICON */
+.btn-input-customer i,
+.btn-reload-customer i{
+  font-size:15px;
+}
+
+
+/* ACTIVE */
+.btn-input-customer:active,
+.btn-reload-customer:active{
+  transform:scale(0.97);
+}
+
+
+/* HOVER / PRESS */
+.btn-input-customer:hover,
+.btn-reload-customer:hover{
+  opacity:0.94;
+}
+
+/* =========================
+HARI DROPDOWN
+========================= */
+.hari-dropdown{
+  position:relative;
+}
+.hari-selected{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  cursor:pointer;
+}
+.hari-menu{
+  position:absolute;
+  top:110%;
+  left:0;
+  width:100%;
+  background:#fff;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:
+    0 10px 30px
+    rgba(0,0,0,0.08);
+  opacity:0;
+  visibility:hidden;
+  transform:
+    translateY(10px);
+  transition:0.2s;
+  z-index:20;
+}
+.hari-menu.active{
+  opacity:1;
+  visibility:visible;
+  transform:
+    translateY(0);
+}
+.hari-item{
+  padding:14px 16px;
+  font-size:14px;
+  cursor:pointer;
+  transition:0.2s;
+}
+.hari-item:hover{
+  background:#f5f5f5;
+}
+
+/* =========================
+POPUP OVERLAY
+========================= */
+.popup-overlay{
+  position:fixed;
+  inset:0;
+  background:
+    rgba(0,0,0,0.45);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+  z-index:9999;
+  opacity:0;
+  pointer-events:none;
+  transition:0.25s;
+}
+/* ACTIVE */
+.popup-overlay.active{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* =========================
+POPUP CONTENT
+========================= */
+.popup-content{
+  width:100%;
+  max-height:92vh;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  background:#fff;
+  border-radius:28px 28px 0 0;
+  padding:10px 18px 10px;
+  transform:translateY(100%);
+  transition:0.3s ease;
+  will-change:transform;
+}
+/* ACTIVE */
+.popup-overlay.active
+.popup-content{
+  transform:translateY(0);
+}
+
+/* =========================
+POPUP HANDLE
+========================= */
+.popup-handle{
+  width:55px;
+  height:6px;
+  background:#ddd;
+  border-radius:20px;
+  margin:0 auto 18px;
+  cursor:grab;
+  flex-shrink:0;
+}
+/* TITLE */
+.popup-title{
+  text-align:center;
+  font-size:22px;
+  font-weight:700;
+  color:#4b3f36;
+  margin-bottom:24px;
+}
+/* GROUP */
+.popup-group{
+  margin-bottom:20px;
+}
+/* LABEL */
+.popup-group label{
+  display:block;
+  margin-bottom:10px;
+  font-size:14px;
+  font-weight:600;
+  color:#6b584b;
+}
+/* INPUT */
+.popup-group input{
+  width:100%;
+  height:52px;
+  border:none;
+  outline:none;
+  background:#f7f3ee;
+  border-radius:16px;
+  padding:0 16px;
+  font-size:15px;
+  color:#4b3f36;
+}
+
+/* =========================
+FORM CUSTOMER
+========================= */
+.customer-form{
+  margin-top:0px;
+}
+
+/* =========================
+POPUP GROUP
+========================= */
+.popup-group{
+  margin-bottom:5px;
+}
+/* LABEL */
+.popup-group label{
+  display:block;
+  margin-bottom:10px;
+  font-size:14px;
+  font-weight:600;
+  color:#6b584b;
+}
+/* INPUT */
+.popup-group input{
+  width:100%;
+  height:52px;
+  border:none;
+  outline:none;
+  background:#f7f3ee;
+  border-radius:16px;
+  padding:0 16px;
+  font-size:15px;
+  color:#4b3f36;
+}
+
+/* =========================
+BUTTON LOKASI
+========================= */
+.btn-lokasi{
+  width:100%;
+  height:52px;
+  border:none;
+  border-radius:16px;
+  background:#B08A5C;
+  color:#fff;
+  font-size:15px;
+  font-weight:700;
+  margin-bottom:5px;
+  transition:0.25s;
+}
+/* LOADING */
+.btn-lokasi.loading{
+  opacity:0.7;
+}
+/* SUCCESS */
+.btn-lokasi.success{
+  background:#2eaf62;
+}
+/* ERROR */
+.btn-lokasi.error{
+  background:#e74c3c;
+}
+
+/* =========================
+FOTO CARD
+========================= */
+.foto-wrapper{
+  margin-bottom:22px;
+}
+.foto-card{
+  width:100%;
+  aspect-ratio:4/2;
+  border-radius:20px;
+  background:#f7f3ee;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:2px dashed #d8c5ad;
+  position:relative;
+}
+/* FOTO PREVIEW */
+.foto-preview{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+/* PLACEHOLDER */
+/* PLACEHOLDER */
+.foto-placeholder{
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  color:#B08A5C;
+}
+.foto-placeholder i{
+  font-size:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.foto-placeholder span{
+  font-size:14px;
+  font-weight:600;
+}
+
+/* =========================
+BUTTON SIMPAN
+========================= */
+.btn-simpan-customer{
+  width:100%;
+  height:55px;
+  border:none;
+  border-radius:18px;
+  background:#B08A5C;
+  color:#fff;
+  font-size:16px;
+  font-weight:700;
+  transition:0.25s;
+}
+/* LOADING */
+.btn-simpan-customer.loading{
+  opacity:0.7;
+}
+/* SUCCESS */
+.btn-simpan-customer.success{
+  background:#2eaf62;
+}
+/* ERROR */
+.btn-simpan-customer.error{
+  background:#e74c3c;
+}
+
+/* =========================
+LIST CUSTOMER
+========================= */
+.customer-list{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:20px;
+}
+.customer-list-item{
+  background:#fff;
+  border-radius:18px;
+  padding:14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  box-shadow:
+    0 2px 10px
+    rgba(0,0,0,0.05);
+}
+.customer-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+/* FOTO WRAPPER */
+.customer-foto-wrapper{
+  position:relative;
+  width:52px;
+  height:52px;
+  flex-shrink:0;
+}
+/* BADGE CATATAN */
+.customer-note-badge{
+  position:absolute;
+  top:-4px;
+  right:-4px;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:#e74c3c;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:
+    0 4px 10px
+    rgba(231,76,60,.35);
+  border:2px solid #fff;
+  animation:
+    badgePop .25s ease;
+}
+/* ICON */
+.customer-note-badge i{
+  font-size:10px;
+  color:#fff;
+}
+/* ANIMASI */
+@keyframes badgePop{
+  0%{
+    transform:
+      scale(0);
+  }
+  80%{
+    transform:
+      scale(1.15);
+  }
+  100%{
+    transform:
+      scale(1);
+  }
+}
+/* =========================
+BADGE NEW
+========================= */
+.customer-new-badge{
+  position:absolute;
+  bottom:-4px;
+  left:-4px;
+  min-width:34px;
+  height:18px;
+  padding:0 6px;
+  border-radius:20px;
+  background:#2eaf62;
+  color:#fff;
+  font-size:9px;
+  font-weight:700;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:2px solid #fff;
+  box-shadow:
+    0 4px 10px
+    rgba(46,175,98,.3);
+  animation:
+    badgeNewPop .3s ease;
+}
+/* ANIMATION */
+@keyframes badgeNewPop{
+  0%{
+    opacity:0;
+    transform:
+      translateY(6px)
+      scale(.8);
+  }
+  100%{
+    opacity:1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+.customer-foto{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  object-fit:cover;
+  background:#f1f1f1;
+}
+.customer-info{
+  display:flex;
+  flex-direction:column;
+}
+.customer-nama{
+  font-size:15px;
+  font-weight:600;
+  color:#111;
+}
+.customer-empty{
+  padding:24px;
+  text-align:center;
+  color:#999;
+  font-size:14px;
+}
+.customer-info{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.customer-alamat{
+  font-size:12px;
+  color:#777;
+}
+.customer-jarak{
+  font-size:11px;
+  color:#999;
+  font-weight:600;
+}
+/* SERACH CUSTOMER */
+.customer-search{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#f5f5f5;
+  border-radius:14px;
+  padding:0 14px;
+  height:52px;
+  margin-top: 14px;
+  margin-bottom:14px;
+}
+.customer-search i{
+  color:#999;
+  font-size:14px;
+}
+.customer-search input{
+  flex:1;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:14px;
+}
+.customer-suggest{
+  position:absolute;
+  top:58px;
+  left:0;
+  right:0;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+  overflow:hidden;
+  display:none;
+  z-index:20;
+}
+.customer-suggest.active{
+  display:block;
+}
+.customer-suggest-item{
+  padding:14px;
+  font-size:14px;
+  border-bottom:1px solid #f1f1f1;
+}
+.customer-suggest-item:last-child{
+  border-bottom:none;
+}
+.customer-suggest-item:active{
+  background:#f5f5f5;
+}
+/* POPUP CARATAN */
+.customer-action{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.customer-icon-btn{
+  width:40px;
+  height:40px;
+  border:none;
+  border-radius:12px;
+  background:#f5f5f5;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.customer-icon-btn svg{
+  width:20px;
+  height:20px;
+}
+.popup-catatan-title{
+  font-size:22px;
+  font-weight:700;
+  text-align:center;
+  margin-bottom:8px;
+}
+.popup-catatan-update{
+  font-size:13px;
+  color:#777;
+  text-align:center;
+  margin-bottom:20px;
+}
+#popupCatatanText{
+  width:100%;
+  border:none;
+  outline:none;
+  resize:none;
+  background:#f5f5f5;
+  border-radius:14px;
+  padding:14px;
+  font-size:15px;
+}

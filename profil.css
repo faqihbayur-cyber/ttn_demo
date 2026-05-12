@@ -1,0 +1,67 @@
+.profil-header{
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+
+  margin-top:30px;
+}
+
+
+.profil-avatar{
+
+  width:100px;
+  height:100px;
+
+  border-radius:50%;
+
+  background:#B08A5C;
+
+  color:#fff;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+
+  font-size:40px;
+  font-weight:bold;
+
+  margin-bottom:15px;
+}
+
+
+.profil-name{
+
+  font-size:22px;
+  font-weight:600;
+}
+
+
+.profil-email{
+
+  margin-top:5px;
+
+  color:#888;
+}
+
+
+.logout-btn{
+
+  width:100%;
+
+  margin-top:40px;
+
+  padding:14px;
+
+  border:none;
+  border-radius:14px;
+
+  background:#B08A5C;
+
+  color:#fff;
+
+  font-size:15px;
+  font-weight:600;
+
+  cursor:pointer;
+}
