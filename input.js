@@ -2617,20 +2617,23 @@ async function(){
           window.deleteField;
   
         const payload = {
-  
+        
           createdAt:
             window.serverTimestamp(),
-  
+        
+          tanggal:
+            today,
+        
           idCabang:
             userData.idCabang || "",
-  
+        
           pemilik: uid,
-  
+        
           idCustomer:
             data.idCustomer ||
             data.id ||
             "",
-  
+        
           namaCustomer:
             data.namaCustomer || ""
         };

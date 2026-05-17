@@ -31,7 +31,52 @@ window.initCustomerView = function(){
     document.getElementById(
       "customerSuggest"
     );
-    
+  // =========================
+  // BATAS INPUT CUSTOMER
+  // =========================
+  const btnInputCustomer =
+    document.querySelector(
+      ".btn-input-customer"
+    );
+  
+  if(btnInputCustomer){
+  
+    // WIB UTC+7
+    const now =
+      new Date();
+  
+    const jamWIB =
+      now.getUTCHours() + 7;
+  
+    const menit =
+      now.getUTCMinutes();
+  
+    const sudahTutup =
+      (
+        jamWIB > 20
+      ) ||
+      (
+        jamWIB === 20 &&
+        menit >= 0
+      );
+  
+    if(sudahTutup){
+  
+      btnInputCustomer.disabled =
+        true;
+  
+      btnInputCustomer.style.opacity =
+        "0.5";
+  
+      btnInputCustomer.style.cursor =
+        "not-allowed";
+  
+      btnInputCustomer.innerHTML = `
+        <i class="fa-solid fa-lock"></i>
+        Input Ditutup
+      `;
+    }
+  }    
   // =========================
   // ARRAY HARI
   // =========================

@@ -242,7 +242,7 @@ POPUP CONTENT
   -webkit-overflow-scrolling:touch;
   background:#fff;
   border-radius:28px 28px 0 0;
-  padding:10px 18px 10px;
+  padding:22px 18px 30px;
   transform:translateY(100%);
   transition:0.3s ease;
   will-change:transform;
@@ -303,33 +303,6 @@ FORM CUSTOMER
 ========================= */
 .customer-form{
   margin-top:0px;
-}
-
-/* =========================
-POPUP GROUP
-========================= */
-.popup-group{
-  margin-bottom:5px;
-}
-/* LABEL */
-.popup-group label{
-  display:block;
-  margin-bottom:10px;
-  font-size:14px;
-  font-weight:600;
-  color:#6b584b;
-}
-/* INPUT */
-.popup-group input{
-  width:100%;
-  height:52px;
-  border:none;
-  outline:none;
-  background:#f7f3ee;
-  border-radius:16px;
-  padding:0 16px;
-  font-size:15px;
-  color:#4b3f36;
 }
 
 /* =========================
