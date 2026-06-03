@@ -2,14 +2,21 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+<!-- PWA Meta -->
 <meta name="theme-color" content="#b3874f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TTN Marketing">
+
+<!-- Icons -->
 <link rel="icon" type="image/png" sizes="32x32" href="icon_32.png">
 <link rel="icon" type="image/png" sizes="48x48" href="icon_48.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon_512.png">
-<!-- Apple Touch Icon -->
 <link rel="apple-touch-icon" sizes="192x192" href="icon_192.png">
+
+<!-- Manifest -->
 <link rel="manifest" href="manifest.json">
 <title>Marketing TTN</title>
 
@@ -27,6 +34,8 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
 <link rel="stylesheet" href="slip.css">
 <link rel="stylesheet" href="chat.css">
 <link rel="stylesheet" href="rollingcustomer.css">
+<link rel="stylesheet" href="cleaner.css">
+<link rel="stylesheet" href="root.css">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
@@ -804,7 +813,7 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
           <div class="profil-menu-item">
             <div class="profil-menu-left">
               <div class="profil-card-icon green"><i class="fa-solid fa-bell"></i></div>
-              <span>Notifikasi</span>
+              <span>Aksesbilitas</span>
             </div>
             <i class="fa-solid fa-chevron-right profil-menu-arrow"></i>
           </div>
@@ -956,7 +965,7 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
             </div>
             <div class="tentang-card-info">
               <div class="tentang-card-label">Produk</div>
-              <div class="tentang-card-value">Teh Tarik Nusantara</div>
+              <div class="tentang-card-value">Teh Tarik Nusantara & Es Kenyot</div>
             </div>
           </div>
           <div class="tentang-card-sep"></div>
@@ -1037,10 +1046,10 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
               <i class="fa-brands fa-instagram"></i>
             </div>
             <div class="tentang-sosmed-name">Instagram</div>
-            <div class="tentang-sosmed-handle">@tehtarik_nusantara</div>
+            <div class="tentang-sosmed-handle">Teh Terik Nusantara</div>
           </div>
   
-          <div class="tentang-sosmed-card" onclick="window.open('https://facebook.com/Teh Tarik Nusantara','_blank')">
+          <div class="tentang-sosmed-card" onclick="window.open('https://www.facebook.com/profile.php?id=61583550478024')">
             <div class="tentang-sosmed-icon fb">
               <i class="fa-brands fa-facebook"></i>
             </div>
@@ -1048,12 +1057,12 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
             <div class="tentang-sosmed-handle">Teh Tarik Nusantara</div>
           </div>
   
-          <div class="tentang-sosmed-card" onclick="window.open('https://tiktok.com/@tehtariknusantara','_blank')">
+          <div class="tentang-sosmed-card" onclick="window.open('https://www.tiktok.com/@teh_tariknusantara.pkl?_r=1&_t=ZS-96u4Wyr461C')">
             <div class="tentang-sosmed-icon tt">
               <i class="fa-brands fa-tiktok"></i>
             </div>
             <div class="tentang-sosmed-name">TikTok</div>
-            <div class="tentang-sosmed-handle">@Teh Tarik Nusantara</div>
+            <div class="tentang-sosmed-handle">Teh Tarik Nusantara</div>
           </div>
   
         </div>
@@ -1408,10 +1417,19 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
       <div class="slip-body">
         <!-- FILTER -->
         <div class="slip-section-label">Filter</div>
-        <div class="slip-filter-card">
-          <select id="filterBulan" class="slip-select"></select>
-          <select id="filterTahun" class="slip-select"></select>
-        </div>
+          <div class="slip-filter-card">
+            <select id="filterBulan" class="slip-select"></select>
+            <div class="slip-custom-select" id="filterBulanTrigger" style="display:none">
+              <span class="slip-custom-select-label placeholder">Pilih Bulan</span>
+              <i class="fa-solid fa-chevron-down slip-custom-select-arrow"></i>
+            </div>
+          
+            <select id="filterTahun" class="slip-select"></select>
+            <div class="slip-custom-select" id="filterTahunTrigger" style="display:none">
+              <span class="slip-custom-select-label placeholder">Pilih Tahun</span>
+              <i class="fa-solid fa-chevron-down slip-custom-select-arrow"></i>
+            </div>
+          </div>
           <!-- LIST -->
         <div class="slip-section-label">Daftar Slip</div>
         <div class="slip-list" id="slipList"></div>
@@ -1585,8 +1603,8 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
                 <i class="fa-solid fa-right-from-bracket"></i>
               </div>
               <div>
-                <div class="keamanan-menu-title">Logout Paksa</div>
-                <div class="keamanan-menu-sub">Keluar dari semua sesi aktif</div>
+                <div class="keamanan-menu-title" id="logoutModalTitle">Logout Paksa</div>
+                <div class="keamanan-menu-sub" id="logoutModalDesc">Keluar dari semua sesi aktif</div>
               </div>
             </div>
             <i class="fa-solid fa-chevron-right tentang-arrow"></i>
@@ -1910,7 +1928,6 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
     </div>
   </div>
 
-
 </div>
   
  <!-- POPUP CATATAN GLOBAL  -->
@@ -1940,39 +1957,66 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
       </span>
     </button>
   </div>
-</div>   
+</div>
+<!-- LOGOUT MODAL -->
+<div class="logout-modal-overlay" id="logoutModal">
+
+  <div class="logout-modal">
+
+    <div class="logout-modal-icon">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </div>
+
+    <div class="logout-modal-title">
+      Logout Aplikasi?
+    </div>
+
+    <div class="logout-modal-text">
+      Anda akan keluar dari akun saat ini.
+    </div>
+
+    <div class="logout-modal-actions">
+
+      <button class="logout-btn-cancel" id="btnLogoutCancel">
+        Batal
+      </button>
+
+      <button class="logout-btn-confirm" id="btnLogoutConfirm">
+        Logout
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
 <!-- ===== NAVBAR ===== -->
-<div class="navbar-bottom">
-  <div class="nav-indicator" id="navIndicator"></div>
+<div class="navbar-bottom" id="navbarBottom">
 
-  <div class="nav-item active" data-view="home">
-    <div class="nav-icon-wrap">
-      <i class="fa-solid fa-house"></i>
-    </div>
-    <span>Home</span>
+  <svg class="nav-bg" viewBox="0 0 400 80" preserveAspectRatio="none">
+    <path id="navSvgPath" d="M16 16 H400 Q400 16 400 32 V64 Q400 80 384 80 H16 Q0 80 0 64 V32 Q0 16 16 16 Z"/>
+  </svg>
+
+  <div class="nav-fab" id="navFab">
+    <i class="fa-solid fa-house" id="navFabIcon"></i>
   </div>
-  
-  <div class="nav-item" data-view="operasional">
-    <div class="nav-icon-wrap">
+
+  <div class="nav-items">
+    <div class="nav-item active" data-view="home" data-icon="fa-solid fa-house">
+      <span class="nav-placeholder"></span>
+      <span>Home</span>
+    </div>
+    <div class="nav-item" data-view="operasional" data-icon="fa-solid fa-chart-column">
       <i class="fa-solid fa-chart-column"></i>
+      <span>Laporan</span>
     </div>
-    <span>Laporan</span>
-  </div>
-
-
-  <div class="nav-item" data-view="chatAi">
-    <div class="nav-icon-wrap">
-      <i class="fa-brands fa-rocketchat"></i>
-    </div>
-    <span>Chat</span>
-  </div>
-  
-  <div class="nav-item" data-view="profil">
-    <div class="nav-icon-wrap">
+    <div class="nav-item" data-view="profil" data-icon="fa-solid fa-user">
       <i class="fa-solid fa-user"></i>
+      <span>Profil</span>
     </div>
-    <span>Profil</span>
   </div>
+
 </div>
 
 <script type="module" src="index.js"></script>
@@ -1984,8 +2028,11 @@ content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable
 <script src="operasional.js"></script>
 <script src="slip.js"></script>
 <script src="chat.js"></script>
+<script src="keamanan.js"></script>
+<script src="perjanjian.js"></script>
 <script src="rollingcustomer.js"></script>
 <script type="module" src="profil.js"></script>
+<script src="ai-float-btn.js"></script>
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>

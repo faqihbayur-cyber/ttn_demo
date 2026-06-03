@@ -290,16 +290,48 @@ window.addEventListener("orientationchange",
   }
 );
 
-function showView(viewName){
+// "navbar" | "direct" | "back"
+function showView(viewName, trigger = "direct"){
   currentView = viewName;
 
   document.querySelectorAll(".view").forEach(view=>{
-    view.classList.remove("active");
+    view.classList.remove("active","anim-slide-up","anim-slide-right","anim-slide-left");
   });
 
   const target = document.getElementById(`view-${viewName}`);
   if(target){
     target.classList.add("active");
+
+    // ── Animasi config — ubah mapping di sini ──
+    const ANIM_MAP = {
+      navbar : "anim-navbar",
+      direct : "anim-direct",
+      back   : "anim-back",
+    };
+    const animOff  = localStorage.getItem("pref_anim") === "0";
+    const animClass = (!animOff && ANIM_MAP[trigger]) ?? null;
+    if (animClass) {
+      target.classList.add(animClass);
+      target.addEventListener("animationend", () => {
+        target.classList.remove(animClass);
+      }, { once: true });
+    }
+
+    target.scrollTop = 0;
+  }
+  // AI button: hidden saat di chatAi, tampil di view lain
+  if (localStorage.getItem("pref_ai") !== "0") {
+    if (viewName === "chatAi") {
+      window.hideAiButton?.();
+    } else {
+      window.showAiButton?.();
+    }
+  }
+
+  // Reset scroll container utama juga (app)
+  const appEl = document.getElementById("app");
+  if(appEl){
+    appEl.scrollTop = 0;
   }
 
   const navbar = document.querySelector(".navbar-bottom");
@@ -324,7 +356,7 @@ function showView(viewName){
     navbar.classList.remove("hide");
   }
 
- switch(viewName){
+  switch(viewName){
     case "home": window.initHomeView?.(); break;
     case "input": window.initInputView?.(); break;
     case "customer": window.initCustomerView?.(); break;
@@ -339,6 +371,15 @@ function showView(viewName){
     case "rollingcustomer": window.initRollingCustomerView?.(); break;
     case "chatAi": window.initChatAiView?.(); break;
   }
+
+  // Reset scroll semua view container
+  document.querySelectorAll(".view").forEach(v => {
+    v.scrollTop = 0;
+    // Reset scroll di dalam view juga (kalau ada nested scroll)
+    v.querySelectorAll("[style*='overflow'], .scroll-container").forEach(el => {
+      el.scrollTop = 0;
+    });
+  });
 }
 window.showView = showView;
 function closeActivePopup(){
@@ -351,13 +392,34 @@ function closeActivePopup(){
     "popupCustomer",
     "popupCatatanCustomer",
     "popupHomeCustomer",
-    "analysisDropdown"
+    "analysisDropdown",
+    "slipDropOverlay",
+    "slipDropPopup",
+    "aksesPanel"
   ];
 
   for(const id of popupIds){
-    const popup = document.getElementById(id);
-    if( popup && popup.classList.contains("active")){
-      popup.classList.remove("active");
+    const el = document.getElementById(id);
+    if(!el) continue;
+    const isActive = el.classList.contains("active") ||
+                     (id === "aksesPanel" && el.classList.contains("open"));
+    if(isActive){
+      // Slip dropdown: close overlay + popup sekaligus
+      if(id === "aksesPanel"){
+        el.classList.remove("open");
+        setTimeout(() => el.style.display = "none", 380);
+      } else if(id === "slipDropOverlay" || id === "slipDropPopup"){
+        document.getElementById("slipDropOverlay")?.classList.remove("active");
+        document.getElementById("slipDropPopup")?.classList.remove("active");
+        // Reset transform kalau lagi di-swipe
+        const p = document.getElementById("slipDropPopup");
+        if(p) p.style.transform = "";
+        // Reset arrow tombol trigger
+        document.querySelectorAll(".slip-custom-select.open")
+          .forEach(b => b.classList.remove("open"));
+      } else {
+        el.classList.remove("active");
+      }
       return true;
     }
   }
@@ -373,29 +435,36 @@ window.addEventListener("popstate",
       return;
     }
     if(currentView !== "home"){
-      
+
       const backToProfilViews = [
-        "tentang",
-        "keamanan",
-        "perjanjian",
-        "slip",
-        "rollingcustomer"
+        "tentang","keamanan","perjanjian",
+        "slip","rollingcustomer"
       ];
-    
-      if(backToProfilViews.includes(currentView)){
-        showView("profil");
-      }else{
-        showView("home");
-      }
-    
-      document.querySelectorAll(".nav-item").forEach(i=>{
+
+      // Simpan dulu SEBELUM showView mengubah currentView
+      const backTarget = backToProfilViews.includes(currentView) ? "profil" : "home";
+
+      showView(backTarget, "back");
+
+      // Update nav item & FAB
+      document.querySelectorAll(".nav-item").forEach(i => {
+        if (i.dataset.label) {
+          i.innerHTML =
+            `<i class="${i.dataset.icon}"></i>` +
+            `<span>${i.dataset.label}</span>`;
+        }
         i.classList.remove("active");
       });
-    
-      const homeNav = document.querySelector('.nav-item[data-view="home"]');
-      homeNav?.classList.add("active");
-    
-      updateNavIndicator?.();
+
+      const targetNav = document.querySelector(`.nav-item[data-view="${backTarget}"]`);
+      if (targetNav) {
+        targetNav.innerHTML =
+          `<span class="nav-placeholder"></span>` +
+          `<span>${targetNav.dataset.label}</span>`;
+        targetNav.classList.add("active");
+        window._moveFab?.(targetNav);
+      }
+
       history.pushState({app:true}, "");
       return;
     }
@@ -410,7 +479,34 @@ document.addEventListener("backbutton",
     }
     if(currentView !== "home"){
       e.preventDefault();
-      showView("home");
+
+      const backToProfilViews = [
+        "tentang", "keamanan", "perjanjian",
+        "slip", "rollingcustomer"
+      ];
+
+      const backTarget = backToProfilViews.includes(currentView) ? "profil" : "home";
+      showView(backTarget);
+
+      // Update FAB & active state
+      document.querySelectorAll(".nav-item").forEach(i => {
+        if (i.dataset.label) {
+          i.innerHTML =
+            `<i class="${i.dataset.icon}"></i>` +
+            `<span>${i.dataset.label}</span>`;
+        }
+        i.classList.remove("active");
+      });
+
+      const targetNav = document.querySelector(`.nav-item[data-view="${backTarget}"]`);
+      if (targetNav) {
+        targetNav.innerHTML =
+          `<span class="nav-placeholder"></span>` +
+          `<span>${targetNav.dataset.label}</span>`;
+        targetNav.classList.add("active");
+        window._moveFab?.(targetNav);
+      }
+
       return;
     }
     navigator.app.exitApp?.();
@@ -419,31 +515,155 @@ document.addEventListener("backbutton",
 );
 
 function initNavbar() {
+  const fab     = document.getElementById("navFab");
+  const fabIcon = document.getElementById("navFabIcon");
+  const svgPath = document.getElementById("navSvgPath");
+
+  // Hitung posisi FAB dari posisi DOM aktual (tidak pakai data-index)
+  function getFabLeftPercent(item) {
+    const navbar   = document.getElementById("navbarBottom");
+    const navRect  = navbar.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    const centerX  = itemRect.left + itemRect.width / 2 - navRect.left;
+    return (centerX / navRect.width) * 100;
+  }
+
+  function buildPath(leftPercent) {
+    const css = getComputedStyle(document.documentElement);
+    const W   = 400;
+    const cx  = (leftPercent / 100) * W;
+    const r   = parseFloat(css.getPropertyValue("--nav-curve-r"))   || 52;
+    const dip = parseFloat(css.getPropertyValue("--nav-curve-dip")) || 32;
+    const cp  = parseFloat(css.getPropertyValue("--nav-curve-cp"))  || 0.55;
+    const top = 16;
+    const x0  = cx - r;
+    const x1  = cx + r;
+
+    return [
+      `M16 ${top}`,
+      `H${x0}`,
+      // Sisi kiri: CP1 tetap di atas (datar), CP2 melebar di bawah
+      `C${x0 + r * cp} ${top}  ${cx - r * cp} ${top + dip}  ${cx} ${top + dip}`,
+      `C${cx + r * cp} ${top + dip}  ${x1 - r * cp} ${top}  ${x1} ${top}`,
+      
+      `H400 V64 Q400 80 384 80`,
+      `H16 Q0 80 0 64 V${top} Z`
+    ].join(" ");
+  }
+
+  function moveFab(item, animate = true) {
+    const leftPct = getFabLeftPercent(item);
+
+    // Bounce FAB saat pindah
+    if (animate) {
+      fab.classList.remove("is-moving");
+      void fab.offsetWidth; // force reflow agar animasi re-trigger
+      fab.classList.add("is-moving");
+    }
+
+    fab.style.left = `${leftPct}%`;
+
+    // Ganti icon dengan animasi
+    fabIcon.className = item.dataset.icon;
+    if (animate) {
+      fabIcon.classList.remove("icon-anim");
+      void fabIcon.offsetWidth;
+      fabIcon.classList.add("icon-anim");
+    }
+
+    svgPath.setAttribute("d", buildPath(leftPct));
+
+    const css = getComputedStyle(document.documentElement);
+    fab.style.borderColor = css.getPropertyValue("--nav-fab-border").trim() || "#F7F3EE";
+  }
+
+  // Expose ke luar untuk dipakai back button handler
+  window._moveFab = moveFab;
+
+  // Simpan label dari span terakhir ke data-label sekali saat init
   const navItems = document.querySelectorAll(".nav-item");
+  navItems.forEach(item => {
+    const labelEl = item.querySelector("span:last-child");
+    if (labelEl && !item.dataset.label) {
+      item.dataset.label = labelEl.textContent.trim();
+    }
+  });
 
   navItems.forEach(item => {
     item.addEventListener("click", () => {
-      navItems.forEach(i => i.classList.remove("active"));
+      // Kembalikan item lama
+      const prevActive = document.querySelector(".nav-item.active");
+      if (prevActive && prevActive !== item) {
+        prevActive.innerHTML =
+          `<i class="${prevActive.dataset.icon}"></i>` +
+          `<span>${prevActive.dataset.label}</span>`;
+        prevActive.classList.remove("active");
+      }
+
+      // Aktifkan item baru
+      item.innerHTML =
+        `<span class="nav-placeholder"></span>` +
+        `<span>${item.dataset.label}</span>`;
       item.classList.add("active");
-      updateNavIndicator();
-      showView(item.dataset.view);
+
+      moveFab(item);
+      showView(item.dataset.view, "navbar");
     });
   });
 
-  setTimeout(updateNavIndicator, 100);
+  // Auto hide navbar saat scroll ke bawah, show saat scroll ke atas
+  const appEl = document.getElementById("app");
+  let lastScrollY  = 0;
+  let scrollTimer  = null;
+  let navbarEl     = document.getElementById("navbarBottom");
+
+  const hideNavbarViews = [
+    "customer","input","analisis","rolling",
+    "tentang","keamanan","perjanjian","slip",
+    "rollingcustomer","chatAi"
+  ];
+
+  appEl?.addEventListener("scroll", () => {
+    // Jangan proses jika view aktif memang hide navbar
+    if (hideNavbarViews.includes(currentView)) return;
+
+    const currentY = appEl.scrollTop;
+    const diff     = currentY - lastScrollY;
+
+    if (diff > 8) {
+      navbarEl.classList.add("hide");
+    } else if (diff < -4) {
+      navbarEl.classList.remove("hide");
+    }
+
+    lastScrollY = currentY;
+
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      if (!hideNavbarViews.includes(currentView)) {
+        navbarEl.classList.remove("hide");
+      }
+    }, 1500);
+  }, { passive: true });
+  // Init posisi awal — tunggu render selesai
+  const firstActive = document.querySelector(".nav-item.active");
+  if (firstActive) {
+    // Matikan transisi saat init agar tidak animasi dari kiri
+    svgPath.style.transition = "none";
+    fab.style.transition     = "none";
+
+    setTimeout(() => {
+      moveFab(firstActive, false);
+      // Nyalakan kembali transisi setelah posisi terset
+      setTimeout(() => {
+        svgPath.style.transition = "";
+        fab.style.transition     = "left .4s cubic-bezier(.34,1.3,.64,1)";
+      }, 50);
+    }, 80);
+  }
 }
+function updateNavIndicator() {}
 
-function updateNavIndicator() {
-  const indicator = document.getElementById("navIndicator");
-  const activeItem = document.querySelector(".nav-item.active");
-  if (!indicator || !activeItem) return;
-
-  const rect = activeItem.getBoundingClientRect();
-  const parentRect = activeItem.parentElement.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2 - parentRect.left;
-
-  indicator.style.left = `${centerX - indicator.offsetWidth / 2}px`;
-}
 onAuthStateChanged(auth, async(user)=>{
   if(user){
     try{
@@ -567,6 +787,247 @@ window.fetchUsersByCabang = async function () {
     return [];
   }
 };
+// CROP FOTO ENGINE
+(function initCropEngine() {
+  if (window._cropEngineReady) return;
+  window._cropEngineReady = true;
+  const LS_KEY = 'ttn_cover_photo';
+  const state = {
+    imgRect : { x: 0, y: 0, w: 0, h: 0 },
+    box     : { x: 0, y: 0, w: 0, h: 0 },
+    drag    : null,
+  };
+
+  function getImgRect() {
+    const ws  = document.getElementById('cropWorkspace');
+    const img = document.getElementById('cropImg');
+    if (!ws || !img) return state.imgRect;
+
+    const cw = ws.offsetWidth;
+    const ch = ws.offsetHeight;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return { x: 0, y: 0, w: cw, h: ch };
+
+    const cRatio = cw / ch;
+    const iRatio = iw / ih;
+    let rw, rh, rx, ry;
+
+    if (iRatio > cRatio) {
+      rw = cw; rh = cw / iRatio;
+      rx = 0;  ry = (ch - rh) / 2;
+    } else {
+      rh = ch; rw = ch * iRatio;
+      ry = 0;  rx = (cw - rw) / 2;
+    }
+    return { x: rx, y: ry, w: rw, h: rh };
+  }
+
+  function applyBox() {
+    const el = document.getElementById('cropBox');
+    if (!el) return;
+    el.style.left   = state.box.x + 'px';
+    el.style.top    = state.box.y + 'px';
+    el.style.width  = state.box.w + 'px';
+    el.style.height = state.box.h + 'px';
+
+    // Info ukuran asli
+    const img = document.getElementById('cropImg');
+    if (img && img.naturalWidth) {
+      const ir     = state.imgRect;
+      const scaleX = img.naturalWidth  / ir.w;
+      const scaleY = img.naturalHeight / ir.h;
+      const realW  = Math.round(state.box.w * scaleX);
+      const realH  = Math.round(state.box.h * scaleY);
+      const info   = document.getElementById('cropSizeInfo');
+      if (info) info.textContent = `${realW} × ${realH} px`;
+    }
+  }
+  function clampBox(b, ir) {
+    const MIN = 40;
+    let { x, y, w, h } = b;
+    w = Math.max(MIN, w);
+    h = Math.max(MIN, h);
+    x = Math.max(ir.x, Math.min(x, ir.x + ir.w - w));
+    y = Math.max(ir.y, Math.min(y, ir.y + ir.h - h));
+    if (x + w > ir.x + ir.w) w = ir.x + ir.w - x;
+    if (y + h > ir.y + ir.h) h = ir.y + ir.h - y;
+    return { x, y, w, h };
+  }
+  function getLocal(e) {
+    const ws   = document.getElementById('cropWorkspace');
+    const rect = ws.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return {
+      x: src.clientX - rect.left,
+      y: src.clientY - rect.top,
+    };
+  }
+  function onDown(e) {
+    e.preventDefault();
+    const { x, y }  = getLocal(e);
+    const handle     = e.target.dataset?.handle;
+    const onBox      = e.target.id === 'cropBox' || e.target.closest?.('#cropBox');
+
+    if (handle) {
+      // Resize dari corner handle
+      state.drag = { type: 'resize', handle, sx: x, sy: y, sb: { ...state.box } };
+    } else if (onBox) {
+      // Pindahkan seluruh box
+      state.drag = { type: 'move', sx: x, sy: y, sb: { ...state.box } };
+    } else {
+      // Gambar crop box baru dari scratch
+      const ir = state.imgRect;
+      const cx = Math.max(ir.x, Math.min(x, ir.x + ir.w));
+      const cy = Math.max(ir.y, Math.min(y, ir.y + ir.h));
+      state.box  = { x: cx, y: cy, w: 1, h: 1 };
+      state.drag = { type: 'new', sx: cx, sy: cy };
+      applyBox();
+    }
+  }
+  function onMove(e) {
+    if (!state.drag) return;
+    e.preventDefault();
+    const { x, y } = getLocal(e);
+    const ir = state.imgRect;
+    const sb = state.drag.sb;
+    const dx = x - state.drag.sx;
+    const dy = y - state.drag.sy;
+    const MIN = 40;
+    let nb;
+
+    if (state.drag.type === 'move') {
+      nb = clampBox({ x: sb.x + dx, y: sb.y + dy, w: sb.w, h: sb.h }, ir);
+
+    } else if (state.drag.type === 'resize') {
+      const h = state.drag.handle;
+      let { x: bx, y: by, w: bw, h: bh } = sb;
+
+      if (h === 'br') { bw = Math.max(MIN, bw + dx); bh = Math.max(MIN, bh + dy); }
+      if (h === 'bl') { const nw = Math.max(MIN, bw - dx); bx = bx + bw - nw; bw = nw; bh = Math.max(MIN, bh + dy); }
+      if (h === 'tr') { bw = Math.max(MIN, bw + dx); const nh = Math.max(MIN, bh - dy); by = by + bh - nh; bh = nh; }
+      if (h === 'tl') { const nw = Math.max(MIN, bw - dx); bx = bx + bw - nw; bw = nw; const nh = Math.max(MIN, bh - dy); by = by + bh - nh; bh = nh; }
+
+      nb = clampBox({ x: bx, y: by, w: bw, h: bh }, ir);
+
+    } else if (state.drag.type === 'new') {
+      const x1 = Math.max(ir.x, Math.min(state.drag.sx, ir.x + ir.w));
+      const y1 = Math.max(ir.y, Math.min(state.drag.sy, ir.y + ir.h));
+      const x2 = Math.max(ir.x, Math.min(x, ir.x + ir.w));
+      const y2 = Math.max(ir.y, Math.min(y, ir.y + ir.h));
+      nb = { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1) || 1, h: Math.abs(y2 - y1) || 1 };
+    }
+
+    if (nb) { state.box = nb; applyBox(); }
+  }
+  function onUp() { state.drag = null; }
+
+  window.openCropModal = function(dataUrl) {
+    const overlay = document.getElementById('cropOverlay');
+    const img     = document.getElementById('cropImg');
+    if (!overlay || !img) return;
+
+    overlay.classList.add('open');
+    img.src = dataUrl;
+
+    img.onload = () => {
+      // Hitung posisi gambar, init crop box = full gambar
+      state.imgRect = getImgRect();
+      state.box     = { ...state.imgRect };
+      applyBox();
+
+      // Pasang event (sekali)
+      const ws = document.getElementById('cropWorkspace');
+      ws.onmousedown  = onDown;
+      ws.ontouchstart = onDown;
+      document.onmousemove  = onMove;
+      document.ontouchmove  = onMove;
+      document.onmouseup    = onUp;
+      document.ontouchend   = onUp;
+    };
+  };
+  function doConfirm() {
+    const img = document.getElementById('cropImg');
+    if (!img) return;
+
+    const ir     = state.imgRect;
+    const box    = state.box;
+    const scaleX = img.naturalWidth  / ir.w;
+    const scaleY = img.naturalHeight / ir.h;
+
+    // Koordinat crop di gambar asli
+    const sx = (box.x - ir.x) * scaleX;
+    const sy = (box.y - ir.y) * scaleY;
+    const sw = box.w * scaleX;
+    const sh = box.h * scaleY;
+
+    // Output max 1200px lebar
+    const MAX_W  = 1200;
+    const outW   = Math.min(Math.round(sw), MAX_W);
+    const outH   = Math.round(sh * (outW / sw));
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = outW;
+    canvas.height = outH;
+    canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+
+    const compressed = canvas.toDataURL('image/jpeg', 0.78);
+
+    // Log ukuran
+    const before = Math.round(img.src.length / 1024);
+    const after  = Math.round(compressed.length / 1024);
+    console.log(`✂️ Crop: ${outW}×${outH}px | ${before}KB → ${after}KB`);
+
+    // Simpan localStorage
+    try {
+      localStorage.setItem(LS_KEY, compressed);
+    } catch (err) {
+      alert('Gambar terlalu besar. Coba area crop lebih kecil.');
+      return;
+    }
+
+    // Update hero background
+    const heroBg = document.getElementById('profilHeroBg');
+    if (heroBg) {
+      heroBg.style.background     = `url(${compressed}) center/cover no-repeat`;
+      heroBg.style.backgroundSize = 'cover';
+    }
+
+    closeModal();
+  }
+  function closeModal() {
+    const overlay = document.getElementById('cropOverlay');
+    if (overlay) overlay.classList.remove('open');
+    // Bersihkan event
+    document.onmousemove = document.ontouchmove = null;
+    document.onmouseup   = document.ontouchend  = null;
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#cropConfirm'))              doConfirm();
+    if (e.target.closest('#cropCancel'))               closeModal();
+    if (e.target.closest('#cropClose'))                closeModal();
+    // Klik overlay hitam di luar modal
+    if (e.target.id === 'cropOverlay')                 closeModal();
+  });
+})();
+// ── DARK MODE ──────────────────────────────
+window.applyDarkMode = function(val){
+  if(val){
+    document.body.classList.add("dark-mode");
+  }else{
+    document.body.classList.remove("dark-mode");
+  }
+
+  localStorage.setItem("pref_dark", val ? "1" : "0");
+};
+
+// Helper
+window.isDarkMode = function(){
+  return localStorage.getItem("pref_dark") === "1";
+};
+
+// Load pertama kali
+window.applyDarkMode(window.isDarkMode());
 
 // REGISTER SERVICE WORKER
 if ("serviceWorker" in navigator) {

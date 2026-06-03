@@ -7,10 +7,10 @@ CUSTOMER PAGE
   flex-direction:column;
   overflow:hidden;
   padding:50px 0 0;
-  background:#b3874f;
+  background: var(--customer-page-bg);
 }
 .customer-card{
-  background:#F7F3EE;
+  background: var(--bg-primary);
   border-radius: 34px 34px 0 0;
   padding:22px;
   box-shadow: 0 10px 30px rgba(99,68,33,.14);
@@ -26,20 +26,20 @@ CUSTOMER PAGE
 .customer-label{
   font-size:15px;
   font-weight:700;
-  color:#B08A5C;
+  color: var(--home-menu-icon);
 }
 .customer-value{
   font-size:15px;
   font-weight:700;
-  color:#B08A5C;
+  color: var(--home-menu-icon);
 }
 .customer-total{
   font-size:15px;
   font-weight:700;
-  color:#4b3f36;
+  color: var(--popup-btn-text);
 }
 .customer-total span{
-  color:#B08A5C;
+  color: var(--home-menu-icon);
 }
 
 .customer-stats{
@@ -49,14 +49,14 @@ CUSTOMER PAGE
   margin-bottom:18px;
 }
 .customer-stat-card{
-  background:#e6d3b8;
+  background: var(--customer-stat-bg);
   border-radius:18px;
   padding:10px;
   text-align:center;
 }
 .customer-stat-title{
   font-size:15px;
-  color:#8b7d74;
+  color: var(--customer-stat-title);
   margin-bottom:6px;
 }
 .customer-stat-value{
@@ -64,10 +64,10 @@ CUSTOMER PAGE
   font-weight:700;
 }
 .customer-stat-value.new{
-  color:#2eaf62;
+  color: var(--success);
 }
 .customer-stat-value.old{
-  color:#B08A5C;
+  color: var(--home-menu-icon);
 }
 
 .customer-bottom-bar{
@@ -80,7 +80,7 @@ CUSTOMER PAGE
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  background: #b3874f;
+  background: var(--home-header-bg);
   z-index: 1000;
   box-shadow: 0 -3px 12px rgba(0,0,0,0.25);
   transform: translateY(var(--keyboard-offset, 0px));
@@ -113,23 +113,23 @@ CUSTOMER PAGE
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f7efe3; /* cream soft biar kontras */
+  background: var(--customer-search-bg);
   border-radius: 25px;
   padding: 12px 12px;
   position: relative;
 }
 .customer-search i{
-  color: #6b4a2d;
+  color: var(--customer-search-icon);
 }
 .customer-search input{
   border: none;
   outline: none;
   background: transparent;
   width: 100%;
-  color: #3b2a1d;
+  color: var(--customer-search-text);
 }
 .customer-search input::placeholder{
-  color: #8a6a4a;
+  color: var(--customer-search-placeholder);
 }
 .customer-action-row{
   display: flex;
@@ -140,7 +140,7 @@ CUSTOMER PAGE
   left: 0;
   right: 0;
   margin-bottom: 8px;
-  background: #fffaf3;
+  background: var(--customer-suggest-bg);
   border-radius: 12px;
   box-shadow: 0 5px 15px rgba(0,0,0,0.2);
   max-height: 200px;
@@ -163,7 +163,7 @@ CUSTOMER PAGE
   left:22px;
   right:22px;
   width:auto;
-  background:#fff;
+  background: var(--hari-menu-bg);
   border-radius:18px;
   overflow:hidden;
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
@@ -185,13 +185,13 @@ CUSTOMER PAGE
   transition:0.2s;
 }
 .hari-item:hover{
-  background:#f5f5f5;
+  background: var(--hari-menu-hover);
 }
 
 .popup-overlay{
   position:fixed;
   inset:0;
-  background: rgba(0,0,0,0.45);
+  background: var(--popup-overlay-bg);
   display:flex;
   align-items:flex-end;
   justify-content:center;
@@ -211,7 +211,7 @@ CUSTOMER PAGE
   max-height:92vh;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
-  background:#fff;
+  background: var(--popup-content-bg);
   border-radius:28px 28px 0 0;
   padding:22px 18px 30px;
   transform:translateY(100%);
@@ -226,7 +226,7 @@ CUSTOMER PAGE
 .popup-handle{
   width:55px;
   height:6px;
-  background:#ddd;
+  background: var(--popup-handle-bg);
   border-radius:20px;
   margin:0 auto 18px;
   cursor:grab;
@@ -236,7 +236,7 @@ CUSTOMER PAGE
   text-align:center;
   font-size:22px;
   font-weight:700;
-  color:#4b3f36;
+  color: var(--popup-btn-text);
   margin-bottom:24px;
 }
 .popup-group{
@@ -247,18 +247,18 @@ CUSTOMER PAGE
   margin-bottom:10px;
   font-size:14px;
   font-weight:600;
-  color:#6b584b;
+  color: var(--text-primary);
 }
 .popup-group input{
   width:100%;
   height:52px;
   border:none;
   outline:none;
-  background:#f7f3ee;
+  background: var(--bg-primary);
+  color: var(--popup-btn-text);
   border-radius:16px;
   padding:0 16px;
   font-size:15px;
-  color:#4b3f36;
 }
 .customer-form{
   margin-top:0px;
@@ -293,12 +293,12 @@ CUSTOMER PAGE
   width:100%;
   aspect-ratio:4/2;
   border-radius:20px;
-  background:#f7f3ee;
+  background: var(--foto-bg);
   overflow:hidden;
   display:flex;
   align-items:center;
   justify-content:center;
-  border:2px dashed #d8c5ad;
+  border:2px dashed var(--foto-border);
   position:relative;
 }
 .foto-preview{
@@ -314,7 +314,7 @@ CUSTOMER PAGE
   align-items:center;
   justify-content:center;
   gap:10px;
-  color:#B08A5C;
+  color: var(--home-menu-icon);
 }
 .foto-placeholder i{
   font-size:30px;
@@ -357,7 +357,7 @@ CUSTOMER PAGE
   margin-bottom: 50px;
 }
 .customer-list-item{
-  background:#ffe5b4;
+  background: var(--customer-list);
   border-radius:45px;
   display:flex;
   padding: 5px 16px;
@@ -387,11 +387,11 @@ CUSTOMER PAGE
   width:22px;
   height:22px;
   border-radius:50%;
-  background:#e74c3c;
+  background: var(--customer-note-bg);
+  box-shadow: 0 4px 10px var(--customer-note-shadow);
   display:flex;
   align-items:center;
   justify-content:center;
-  box-shadow: 0 4px 10px rgba(231,76,60,.35);
   border:2px solid #fff;
   animation: badgePop .25s ease;
 }
@@ -418,7 +418,8 @@ CUSTOMER PAGE
   height:18px;
   padding:0 6px;
   border-radius:20px;
-  background:#2eaf62;
+  background: var(--customer-new-bg);
+  box-shadow: 0 4px 10px var(--customer-new-shadow);
   color:#fff;
   font-size:9px;
   font-weight:700;
@@ -426,7 +427,6 @@ CUSTOMER PAGE
   align-items:center;
   justify-content:center;
   border:2px solid #fff;
-  box-shadow: 0 4px 10px rgba(46,175,98,.3);
   animation: badgeNewPop .3s ease;
 }
 @keyframes badgeNewPop{
@@ -444,7 +444,7 @@ CUSTOMER PAGE
   height:52px;
   border-radius:50%;
   object-fit:cover;
-  background:#f1f1f1;
+  background: var(--customer-photo-bg);
 }
 .customer-info{
   display:flex;
@@ -453,12 +453,12 @@ CUSTOMER PAGE
 .customer-nama{
   font-size:15px;
   font-weight:600;
-  color:#111;
+  color: var(--customer-name);
 }
 .customer-empty{
   padding:24px;
   text-align:center;
-  color:#999;
+  color: var(--customer-empty);
   font-size:14px;
 }
 .customer-info{
@@ -468,11 +468,11 @@ CUSTOMER PAGE
 }
 .customer-alamat{
   font-size:12px;
-  color:#777;
+  color: var(--customer-address);
 }
 .customer-jarak{
   font-size:11px;
-  color:#999;
+  color: var(--customer-distance);
   font-weight:600;
 }
 .customer-action{
@@ -502,7 +502,7 @@ CUSTOMER PAGE
 }
 .popup-catatan-update{
   font-size:13px;
-  color:#777;
+  color: var(--catatan-update-color);
   text-align:center;
   margin-bottom:20px;
 }
@@ -511,7 +511,8 @@ CUSTOMER PAGE
   border:none;
   outline:none;
   resize:none;
-  background:#f5f5f5;
+  background: var(--catatan-textarea-bg);
+  color: var(--text-primary);
   border-radius:14px;
   padding:14px;
   font-size:15px;

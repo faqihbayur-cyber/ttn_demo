@@ -23,39 +23,162 @@ function getBulanSebelumnya() {
   };
 }
 
-/* ─── INIT ─────────────────────────────────────────── */
+// ── State filter ──
+const _slipFilter = { bulan: 0, tahun: 0 };
+
+// ── Custom dropdown builder ──
+function buildCustomSelect({ triggerId, title, items, selectedValue, onSelect }) {
+  const trigger = document.getElementById(triggerId);
+  if (!trigger) return;
+
+  // Pakai elemen berikutnya (sudah ada di HTML)
+  const btn = trigger.nextElementSibling;
+  if (!btn) return;
+  btn.style.display = "flex";
+
+  // Set label awal
+  function setLabel(val) {
+    const found = items.find(i => String(i.value) === String(val));
+    const lbl   = btn.querySelector(".slip-custom-select-label");
+    if (found && found.value !== "") {
+      lbl.textContent = found.label;
+      lbl.classList.remove("placeholder");
+    } else {
+      lbl.textContent = items[0]?.label || "Pilih...";
+      lbl.classList.add("placeholder");
+    }
+  }
+  setLabel(selectedValue);
+
+  // Buat / reuse overlay + popup
+  let overlay = document.getElementById("slipDropOverlay");
+  let popup   = document.getElementById("slipDropPopup");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id        = "slipDropOverlay";
+    overlay.className = "slip-dropdown-overlay";
+    document.body.appendChild(overlay);
+  }
+  if (!popup) {
+    popup = document.createElement("div");
+    popup.id        = "slipDropPopup";
+    popup.className = "slip-dropdown-popup";
+    document.body.appendChild(popup);
+  }
+
+  function openPopup() {
+    // Render isi popup
+    popup.innerHTML = `
+      <div class="slip-dropdown-handle"></div>
+      <div class="slip-dropdown-header">
+        <span class="slip-dropdown-title">${title}</span>
+        <button class="slip-dropdown-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="slip-dropdown-list">
+        ${items.map(it => `
+          <div class="slip-dropdown-item ${String(it.value) === String(selectedValue) ? "selected" : ""} ${it.muted ? "slip-dropdown-item--muted" : ""}"
+               data-value="${it.value}">
+            ${it.label}
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    overlay.classList.add("active");
+    popup.classList.add("active");
+    btn.classList.add("open");
+
+      // Close
+    const close = () => {
+      overlay.classList.remove("active");
+      popup.classList.remove("active");
+      btn.classList.remove("open");
+    };
+    overlay.onclick = close;
+    popup.querySelector(".slip-dropdown-close").onclick = close;
+  
+    // Swipe down to close
+    let touchStartY = 0;
+    popup.addEventListener("touchstart", e => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    popup.addEventListener("touchmove", e => {
+      const delta = e.touches[0].clientY - touchStartY;
+      if (delta > 0) popup.style.transform = `translateY(${delta}px)`;
+    }, { passive: true });
+    popup.addEventListener("touchend", e => {
+      const delta = e.changedTouches[0].clientY - touchStartY;
+      popup.style.transform = "";
+      if (delta > 80) close();
+    }, { passive: true });
+
+    // Pilih item
+    popup.querySelectorAll(".slip-dropdown-item").forEach(el => {
+      el.addEventListener("click", () => {
+        const val = el.dataset.value;
+        selectedValue = val;
+        setLabel(val);
+        onSelect(val);
+        close();
+      });
+    });
+  }
+
+  btn.onclick = openPopup;
+}
+
 window.initSlipView = function () {
-  const target      = getBulanSebelumnya();
-  const bulanSelect = document.getElementById("filterBulan");
-  const tahunSelect = document.getElementById("filterTahun");
+  const target = getBulanSebelumnya();
+  const thn    = new Date().getFullYear();
 
-  if (bulanSelect) {
-    bulanSelect.innerHTML = `
-      <option value="">Semua Bulan</option>
-      ${Array.from({ length: 12 }, (_, i) => i + 1)
-        .map(b => `<option value="${b}" ${b === target.bulan ? "selected" : ""}>${getBulan(b)}</option>`)
-        .join("")}
-    `;
-  }
+  _slipFilter.bulan = target.bulan;
+  _slipFilter.tahun = target.tahun;
 
-  if (tahunSelect) {
-    const thn = new Date().getFullYear();
-    tahunSelect.innerHTML = `
-      <option value="">Semua Tahun</option>
-      <option value="${thn}"   ${target.tahun === thn     ? "selected" : ""}>${thn}</option>
-      <option value="${thn-1}" ${target.tahun === thn - 1 ? "selected" : ""}>${thn - 1}</option>
-    `;
-  }
+  // Custom select bulan
+  buildCustomSelect({
+    triggerId     : "filterBulan",
+    title         : "Pilih Bulan",
+    items         : [
+      { value: "", label: "Semua Bulan", muted: true },
+      ...Array.from({ length: 12 }, (_, i) => ({
+        value: i + 1,
+        label: getBulan(i + 1)
+      }))
+    ],
+    selectedValue : target.bulan,
+    onSelect      : (val) => {
+      _slipFilter.bulan = Number(val);
+      onFilterChange();
+    }
+  });
+
+  // Custom select tahun
+  const startTahun = 2025;
+  const endTahun   = 2030;
+  buildCustomSelect({
+    triggerId     : "filterTahun",
+    title         : "Pilih Tahun",
+    items         : [
+      { value: "", label: "Semua Tahun", muted: true },
+      ...Array.from({ length: endTahun - startTahun + 1 }, (_, i) => ({
+        value: startTahun + i,
+        label: String(startTahun + i)
+      }))
+    ],
+    selectedValue : target.tahun,
+    onSelect      : (val) => {
+      _slipFilter.tahun = Number(val);
+      onFilterChange();
+    }
+  });
 
   renderSlipCard(target);
-
-  bulanSelect?.addEventListener("change", onFilterChange);
-  tahunSelect?.addEventListener("change", onFilterChange);
 };
 
 function onFilterChange() {
-  const bulan = Number(document.getElementById("filterBulan")?.value);
-  const tahun = Number(document.getElementById("filterTahun")?.value);
+  const bulan = _slipFilter.bulan;
+  const tahun = _slipFilter.tahun;
 
   if (!bulan || !tahun) {
     renderSlipCard(null);
