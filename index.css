@@ -53,11 +53,11 @@ html, body {
 }
 
 :root {
-  --anim-navbar-duration:  .25s;
+  --anim-navbar-duration:  .45s;
   --anim-navbar-easing:    ease;
-  --anim-direct-duration:  .28s;
+  --anim-direct-duration:  .48s;
   --anim-direct-easing:    cubic-bezier(.4,0,.2,1);
-  --anim-back-duration:    .26s;
+  --anim-back-duration:    .46s;
   --anim-back-easing:      cubic-bezier(.4,0,.2,1);
 }
 
@@ -71,9 +71,9 @@ html, body {
 
 /* DIRECT → zoom in */
 .view.anim-direct {
-  animation: viewZoomIn
-    var(--anim-direct-duration, .28s)
-    var(--anim-direct-easing,   cubic-bezier(.4,0,.2,1))
+  animation: viewFade
+    var(--anim-navbar-duration, .25s)
+    var(--anim-navbar-easing,   ease)
     both;
 }
 
