@@ -29,58 +29,82 @@ function renderSuggestEmpty() {
   el.innerHTML = "";
 }
 
-async function getAllCustomerHarian() {
-  const db = await window.openAppDB();
-  const tx = db.transaction("customerHarianDB", "readonly");
-  const store = tx.objectStore("customerHarianDB");
-  return new Promise((resolve) => {
-    const req = store.getAll();
-    req.onsuccess = () => {
-      const raw = req.result || [];
-      let all = [];
-      raw.forEach(item => {
-        if (!item) return;
-        if (Array.isArray(item.data)) all.push(...item.data);
-      });
-      resolve(all);
-    };
-    req.onerror = () => resolve([]);
-  });
-}
-
-// ─── Search & Select Customer ────────────────────────────────
+// ─── Search & Select Customer ────────────────────────────
+let _searchCustomerTimer = null;
 
 window.searchCustomerRolling = async function (keyword) {
   const box = document.getElementById("customerSuggestList");
   if (!box) return;
+
   if (!keyword || keyword.length < 2) {
     box.innerHTML = "";
     return;
   }
-  const allCustomer = await getAllCustomerHarian();
-  const filtered = allCustomer.filter(c => {
-    const nama = (c.namaCustomer || c.nama || "").toLowerCase();
-    return nama.includes(keyword.toLowerCase());
-  }).slice(0, 7);
 
-  if (filtered.length === 0) {
-    box.innerHTML = `<div class="rollingcustomer-suggest-item">Tidak ditemukan</div>`;
-    return;
-  }
-  box.innerHTML = filtered.map(c => `
-    <div class="rollingcustomer-suggest-item"
-      onclick="selectCustomerRolling('${c.idCustomer || c.id}')">
-      ${c.namaCustomer || c.nama || "Tanpa Nama"}
-    </div>
-  `).join("");
+  box.innerHTML = `<div class="rollingcustomer-suggest-item">Mencari...</div>`;
+
+  clearTimeout(_searchCustomerTimer);
+  _searchCustomerTimer = setTimeout(async () => {
+    try {
+      const user     = window.currentUser;
+      const uid      = window.auth?.currentUser?.uid;
+      const idCabang = user?.idCabang;
+      if (!idCabang || !uid) return;
+
+      const snap = await window.getDocs(
+        window.query(
+          window.collection(window.db, "customer"),
+          window.where("idCabang", "==", idCabang),
+          window.where("pemilik",  "==", uid),
+          window.where("status",   "==", true)
+        )
+      );
+
+      const kw = keyword.toLowerCase();
+      const filtered = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => (c.namaCustomer || "").toLowerCase().includes(kw))
+        .slice(0, 7);
+
+      if (filtered.length === 0) {
+        box.innerHTML = `<div class="rollingcustomer-suggest-item">Tidak ditemukan</div>`;
+        return;
+      }
+
+      box.innerHTML = filtered.map(c => `
+        <div class="rollingcustomer-suggest-item"
+          onclick="selectCustomerRolling('${c.id}')">
+          ${c.namaCustomer || "Tanpa Nama"}
+        </div>
+      `).join("");
+
+      // Cache hasil untuk selectCustomerRolling
+      window._customerSearchCache = filtered;
+
+    } catch (err) {
+      console.error("searchCustomerRolling error:", err);
+      box.innerHTML = `<div class="rollingcustomer-suggest-item">Gagal mencari</div>`;
+    }
+  }, 400);
 };
 
 window.selectCustomerRolling = async function (id) {
   const boxPreview = document.getElementById("customerPreviewCard");
   const boxSuggest = document.getElementById("customerSuggestList");
-  const allCustomer = await getAllCustomerHarian();
-  const data = allCustomer.find(c => (c.idCustomer || c.id) == id);
-  if (!data) return;
+
+  // Cari dari cache search dulu, fallback getDoc Firestore
+  let data = (window._customerSearchCache || []).find(c => c.id === id);
+
+  if (!data) {
+    try {
+      const snap = await window.getDoc(window.doc(window.db, "customer", id));
+      if (!snap.exists()) return;
+      data = { id: snap.id, ...snap.data() };
+    } catch (err) {
+      console.error("selectCustomerRolling getDoc error:", err);
+      return;
+    }
+  }
 
   // Cek apakah customer ini sudah punya pengajuan pending
   try {
@@ -358,8 +382,13 @@ window.submitRollingHari = async function () {
       idCabang  : user.idCabang,
       idCustomer  : window.selectedCustomerId,
       namaCustomer: window.selectedCustomerNama,
-      from: { hari: window.currentCustomerHari },
-      to  : { hari: window.rollingState.hari   },
+      from: {
+        hari       : window.currentCustomerHari,
+        idCustomer : window.selectedCustomerId,
+        namaCustomer: window.selectedCustomerNama,
+        idCabang   : user.idCabang
+      },
+      to  : { hari: window.rollingState.hari },
       requestedBy: { uid: user.uid, nama: user.nama },
       alasan     : window.rollingState.alasan || "",
       approvedBy : null,
@@ -457,8 +486,11 @@ window.submitRollingKurir = async function () {
       idCustomer  : window.selectedCustomerId,
       namaCustomer: window.selectedCustomerNama,
       from: {
-        idUser  : window.currentCustomerOwnerId,
-        namaUser: window.currentCustomerOwnerName
+        idUser      : window.currentCustomerOwnerId,
+        namaUser    : window.currentCustomerOwnerName,
+        idCustomer  : window.selectedCustomerId,
+        namaCustomer: window.selectedCustomerNama,
+        idCabang    : user.idCabang
       },
       to: {
         idUser  : window.rollingState.kurir.id,
