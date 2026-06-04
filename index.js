@@ -1019,6 +1019,11 @@ window.applyDarkMode = function(val){
   }
 
   localStorage.setItem("pref_dark", val ? "1" : "0");
+
+  // Kirim ke Android
+  if(window.AndroidBridge){
+    window.AndroidBridge.setStatusBarColor(val ? true : false);
+  }
 };
 
 // Helper
