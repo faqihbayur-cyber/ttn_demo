@@ -537,6 +537,7 @@ window.inputCustomer = function() {
         createdAt: window.serverTimestamp(),
         isNew: true,
         status: true,
+        acc: true,
         syncStatus
       };
       if (navigator.onLine) {
