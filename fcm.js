@@ -49,3 +49,4 @@ async function initFCM() {
     console.error("❌ initFCM:", err);
   }
 }
+window.initFCM = initFCM;
