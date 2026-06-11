@@ -14,7 +14,7 @@ html, body {
   height: 100%;
   font-family: Poppins, sans-serif;
   background: var(--bg-primary);
-  overflow: hidden;
+  overflow: auto;
   color: var(--text-primary);
   -webkit-tap-highlight-color: transparent;
   transition: background 0.3s ease, color 0.3s ease;
@@ -35,7 +35,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   scroll-behavior: smooth;
 }
 
