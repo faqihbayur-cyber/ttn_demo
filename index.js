@@ -1,6 +1,6 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { initFCM }       from "./fcm.js";
+import "./fcm.js";
 import {
   getAuth,
   onAuthStateChanged,
@@ -62,6 +62,54 @@ window.updateDoc = updateDoc;
 window.deleteField = deleteField;
 window.currentUser = null;
 window.globalUsersCache = [];
+
+onAuthStateChanged(auth, async(user)=>{
+  if(user){
+    try{
+      const docRef = doc(db,"users",user.uid);
+      const docSnap = await getDoc(docRef);
+      if(docSnap.exists()){
+        const userData =
+          docSnap.data();
+        window.currentUser = {
+          uid: user.uid,
+          email: user.email,
+          ...userData
+        };
+        // simpan cache
+        localStorage.setItem("userCache", JSON.stringify(window.currentUser)
+        );
+      }
+    }catch(err){
+      // OFFLINE MODE
+      const cache = localStorage.getItem("userCache");
+      if(cache){
+        window.currentUser = JSON.parse(cache);
+        console.log("Offline login");
+      }else{
+        window.location.href = "login.html";
+        return;
+      }
+    }
+    // Sync customer hari ini ke IndexedDB saat online
+    if(navigator.onLine && window.currentUser?.uid){
+      window.syncCustomerHarian?.();
+    }
+    initNavbar();
+    showView("home");
+  }else{
+    window.location.href ="login.html";
+  }
+});
+window.logout = async function(){
+  try{
+    await signOut(auth);
+    localStorage.clear();
+    window.location.href = "login.html";
+  }catch(err){
+    console.log(err);
+  }
+};
 
 window.openAppDB = function () {
   return new Promise( (resolve, reject) => {
@@ -669,54 +717,6 @@ function initNavbar() {
   }
 }
 function updateNavIndicator() {}
-
-onAuthStateChanged(auth, async(user)=>{
-  if(user){
-    try{
-      const docRef = doc(db,"users",user.uid);
-      const docSnap = await getDoc(docRef);
-      if(docSnap.exists()){
-        const userData =
-          docSnap.data();
-        window.currentUser = {
-          uid: user.uid,
-          email: user.email,
-          ...userData
-        };
-        // simpan cache
-        localStorage.setItem("userCache", JSON.stringify(window.currentUser)
-        );
-      }
-    }catch(err){
-      // OFFLINE MODE
-      const cache = localStorage.getItem("userCache");
-      if(cache){
-        window.currentUser = JSON.parse(cache);
-        console.log("Offline login");
-      }else{
-        window.location.href = "login.html";
-        return;
-      }
-    }
-    // Sync customer hari ini ke IndexedDB saat online
-    if(navigator.onLine && window.currentUser?.uid){
-      window.syncCustomerHarian?.();
-    }
-    initNavbar();
-    showView("home");
-  }else{
-    window.location.href ="login.html";
-  }
-});
-window.logout = async function(){
-  try{
-    await signOut(auth);
-    localStorage.clear();
-    window.location.href = "login.html";
-  }catch(err){
-    console.log(err);
-  }
-};
 
 // DISABLE ZOOM
 let lastTouchEnd = 0;
