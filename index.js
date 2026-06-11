@@ -1040,16 +1040,15 @@ window.isDarkMode = function(){
 // Load pertama kali
 window.applyDarkMode(window.isDarkMode());
 
-// REGISTER SERVICE WORKER
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("service-worker.js")
+      .register("/firebase-messaging-sw.js") // 👈 HARUS INI
       .then(reg => {
-        console.log("✅ Service Worker aktif", reg);
+        console.log("✅ FCM Service Worker aktif", reg);
       })
       .catch(err => {
-        console.log("❌ Service Worker gagal", err);
+        console.log("❌ SW gagal", err);
       });
   });
 }
