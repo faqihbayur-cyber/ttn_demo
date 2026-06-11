@@ -543,6 +543,22 @@ document.querySelectorAll(".profil-menu-item").forEach(item => {
   });
 document.querySelectorAll(".profil-menu-item").forEach(item => {
     const label = item.querySelector(".profil-menu-left span")?.innerText?.trim();
+    if (label === "Peraturan Perusahaan") {
+      item.addEventListener("click", () => {
+        window.showView("peraturan");
+      });
+    }
+  });
+document.querySelectorAll(".profil-menu-item").forEach(item => {
+    const label = item.querySelector(".profil-menu-left span")?.innerText?.trim();
+    if (label === "SOP") {
+      item.addEventListener("click", () => {
+        window.showView("sop");
+      });
+    }
+  });
+document.querySelectorAll(".profil-menu-item").forEach(item => {
+    const label = item.querySelector(".profil-menu-left span")?.innerText?.trim();
       if (label === "Slip Gaji") {
         item.addEventListener("click", () => {
           window.showView("slip");

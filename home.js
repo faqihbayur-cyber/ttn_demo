@@ -3,6 +3,7 @@ window.initHomeView = function(){
   console.log("Home View");
   const user = window.currentUser;
   if(!user) return;
+  initFCM();
   
   const avatar = document.getElementById("homeAvatar");
   const nama = document.getElementById("homeNama");

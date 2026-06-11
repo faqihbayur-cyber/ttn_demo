@@ -1,6 +1,6 @@
 
-import { initializeApp }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initFCM }       from "./fcm.js";
 import {
   getAuth,
   onAuthStateChanged,
@@ -29,9 +29,12 @@ import {
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCp32H2WeN3A4ZwwWeUWe3Qcjqh0mz_vvQ",
-  authDomain: "teh-tarik-nusantara-26371.firebaseapp.com",
-  projectId: "teh-tarik-nusantara-26371"
+  apiKey:"AIzaSyCp32H2WeN3A4ZwwWeUWe3Qcjqh0mz_vvQ",
+  authDomain:"teh-tarik-nusantara-26371.firebaseapp.com",
+  projectId:"teh-tarik-nusantara-26371",
+  storageBucket:"teh-tarik-nusantara-26371.firebasestorage.app",
+  messagingSenderId:"354760960352",
+  appId:"1:354760960352:web:7d6a6c07dace937a74d605",
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -334,9 +337,8 @@ function showView(viewName, trigger = "direct"){
     appEl.scrollTop = 0;
   }
 
-  const navbar = document.querySelector(".navbar-bottom");
+  const navbar = document.querySelector(".navbar-bottom") || document.getElementById("navbarBottom");
 
-  // 👇 TAMBAH rolling DI SINI
   const hideNavbarViews = [
     "customer",
     "input",
@@ -347,13 +349,16 @@ function showView(viewName, trigger = "direct"){
     "perjanjian",
     "slip",
     "rollingcustomer",
-    "chatAi"
+    "chatAi",
+    "peraturan"
   ];
 
-  if(hideNavbarViews.includes(viewName)){
-    navbar.classList.add("hide");
-  }else{
-    navbar.classList.remove("hide");
+  if (navbar) {
+    if (hideNavbarViews.includes(viewName)) {
+      navbar.classList.add("hide");
+    } else {
+      navbar.classList.remove("hide");
+    }
   }
 
   switch(viewName){
@@ -370,6 +375,7 @@ function showView(viewName, trigger = "direct"){
     case "slip": window.initSlipDataView?.(); break;
     case "rollingcustomer": window.initRollingCustomerView?.(); break;
     case "chatAi": window.initChatAiView?.(); break;
+    case "peraturan": window.initPeraturanView?.(); break;
   }
 
   // Reset scroll semua view container
@@ -437,8 +443,8 @@ window.addEventListener("popstate",
     if(currentView !== "home"){
 
       const backToProfilViews = [
-        "tentang","keamanan","perjanjian",
-        "slip","rollingcustomer"
+        "tentang", "keamanan", "perjanjian",
+        "slip", "rollingcustomer", "peraturan"
       ];
 
       // Simpan dulu SEBELUM showView mengubah currentView
@@ -620,7 +626,7 @@ function initNavbar() {
   const hideNavbarViews = [
     "customer","input","analisis","rolling",
     "tentang","keamanan","perjanjian","slip",
-    "rollingcustomer","chatAi"
+    "rollingcustomer","chatAi","peraturan"
   ];
 
   appEl?.addEventListener("scroll", () => {

@@ -35,6 +35,7 @@
 <link rel="stylesheet" href="chat.css">
 <link rel="stylesheet" href="rollingcustomer.css">
 <link rel="stylesheet" href="cleaner.css">
+<link rel="stylesheet" href="peraturan.css">
 <link rel="stylesheet" href="root.css">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
@@ -804,6 +805,22 @@
           <div class="profil-card-sep"></div>
           <div class="profil-menu-item">
             <div class="profil-menu-left">
+              <div class="profil-card-icon blue"><i class="fa-solid fa-file-contract"></i></div>
+              <span>Peraturan Perusahaan</span>
+            </div>
+            <i class="fa-solid fa-chevron-right profil-menu-arrow"></i>
+          </div>
+          <div class="profil-card-sep"></div>
+          <div class="profil-menu-item">
+            <div class="profil-menu-left">
+              <div class="profil-card-icon blue"><i class="fa-solid fa-file-contract"></i></div>
+              <span>SOP</span>
+            </div>
+            <i class="fa-solid fa-chevron-right profil-menu-arrow"></i>
+          </div>
+          <div class="profil-card-sep"></div>
+          <div class="profil-menu-item">
+            <div class="profil-menu-left">
               <div class="profil-card-icon purple"><i class="fa-solid fa-group-arrows-rotate"></i></div>
               <span>Rolling Customer</span>
             </div>
@@ -1110,6 +1127,184 @@
   
       </div>
     </div>
+  </div>
+
+  <!-- PERATURAN PT -->
+  <div class="view" id="view-peraturan">
+  
+    <!-- HEADER -->
+    <div class="pp-header">
+      <button class="pp-back-btn" onclick="showView('profil')">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <div class="pp-header-title">Peraturan Perusahaan</div>
+      <button class="pp-search-toggle-btn" onclick="toggleSearch()">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
+    </div>
+  
+    <!-- SEARCH BAR -->
+    <div class="pp-search-bar" id="ppSearchBar">
+      <div class="pp-search-inner">
+        <i class="fa-solid fa-magnifying-glass pp-search-icon"></i>
+        <input
+          type="text"
+          class="pp-search-input"
+          id="ppSearchInput"
+          placeholder="Cari bab, pasal, atau isi ayat..."
+          oninput="filterPeraturan(this.value)"
+        />
+        <button class="pp-search-clear" id="ppSearchClear" onclick="clearSearch()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  
+    <!-- BODY -->
+    <div class="pp-body">
+  
+      <!-- HERO -->
+      <div class="pp-hero">
+        <div class="pp-hero-icon">
+          <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div class="pp-hero-text">
+          <div class="pp-hero-title">Peraturan Perusahaan</div>
+          <div class="pp-hero-sub">Pedoman kerja dan tata tertib perusahaan</div>
+        </div>
+        <div class="pp-hero-stats" id="ppHeroStats">
+          <div class="pp-hero-stat">
+            <div class="pp-hero-stat-num" id="statBab">—</div>
+            <div class="pp-hero-stat-label">Bab</div>
+          </div>
+          <div class="pp-hero-stat-divider"></div>
+          <div class="pp-hero-stat">
+            <div class="pp-hero-stat-num" id="statPasal">—</div>
+            <div class="pp-hero-stat-label">Pasal</div>
+          </div>
+          <div class="pp-hero-stat-divider"></div>
+          <div class="pp-hero-stat">
+            <div class="pp-hero-stat-num" id="statUpdate">—</div>
+            <div class="pp-hero-stat-label">Diperbarui</div>
+          </div>
+        </div>
+      </div>
+  
+      <!-- LIST BAB -->
+      <div class="pp-section-label">Daftar Bab</div>
+      <div class="pp-list" id="ppList">
+        <div class="pp-loading">
+          <div class="pp-spinner"></div>
+          <div>Memuat peraturan...</div>
+        </div>
+      </div>
+  
+    </div>
+  
+    <!-- FLOATING BTN -->
+    <button class="pp-fab" onclick="openDaftarBab()" title="Daftar Bab">
+      <i class="fa-solid fa-list"></i>
+    </button>
+  
+    <!-- BOTTOM SHEET OVERLAY -->
+    <div class="pp-overlay" id="ppOverlay" onclick="closeDaftarBab()"></div>
+  
+    <!-- BOTTOM SHEET -->
+    <div class="pp-sheet" id="ppSheet">
+      <div class="pp-sheet-handle"></div>
+      <div class="pp-sheet-title">Daftar Bab</div>
+      <div class="pp-sheet-list" id="ppSheetList"></div>
+    </div>
+  
+  </div>
+  
+  <!-- SOP -->
+  <div class="view" id="view-sop">
+  
+    <!-- HEADER -->
+    <div class="pp-header">
+      <button class="pp-back-btn" onclick="showView('profil')">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <div class="pp-header-title">Peraturan Perusahaan</div>
+      <button class="pp-search-toggle-btn" onclick="toggleSearch()">
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </button>
+    </div>
+  
+    <!-- SEARCH BAR -->
+    <div class="pp-search-bar" id="ppSearchBar">
+      <div class="pp-search-inner">
+        <i class="fa-solid fa-magnifying-glass pp-search-icon"></i>
+        <input
+          type="text"
+          class="pp-search-input"
+          id="ppSearchInput"
+          placeholder="Cari bab, pasal, atau isi ayat..."
+          oninput="filterPeraturan(this.value)"
+        />
+        <button class="pp-search-clear" id="ppSearchClear" onclick="clearSearch()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  
+    <!-- BODY -->
+    <div class="pp-body">
+  
+      <!-- HERO -->
+      <div class="pp-hero">
+        <div class="pp-hero-icon">
+          <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div class="pp-hero-text">
+          <div class="pp-hero-title">Peraturan Perusahaan</div>
+          <div class="pp-hero-sub">Pedoman kerja dan tata tertib perusahaan</div>
+        </div>
+        <div class="pp-hero-stats" id="ppHeroStats">
+          <div class="pp-hero-stat">
+            <div class="pp-hero-stat-num" id="statBab">—</div>
+            <div class="pp-hero-stat-label">Bab</div>
+          </div>
+          <div class="pp-hero-stat-divider"></div>
+          <div class="pp-hero-stat">
+            <div class="pp-hero-stat-num" id="statPasal">—</div>
+            <div class="pp-hero-stat-label">Pasal</div>
+          </div>
+          <div class="pp-hero-stat-divider"></div>
+          <div class="pp-hero-stat">
+            <div class="pp-hero-stat-num" id="statUpdate">—</div>
+            <div class="pp-hero-stat-label">Diperbarui</div>
+          </div>
+        </div>
+      </div>
+  
+      <!-- LIST BAB -->
+      <div class="pp-section-label">Daftar Bab</div>
+      <div class="pp-list" id="ppList">
+        <div class="pp-loading">
+          <div class="pp-spinner"></div>
+          <div>Memuat peraturan...</div>
+        </div>
+      </div>
+  
+    </div>
+  
+    <!-- FLOATING BTN -->
+    <button class="pp-fab" onclick="openDaftarBab()" title="Daftar Bab">
+      <i class="fa-solid fa-list"></i>
+    </button>
+  
+    <!-- BOTTOM SHEET OVERLAY -->
+    <div class="pp-overlay" id="ppOverlay" onclick="closeDaftarBab()"></div>
+  
+    <!-- BOTTOM SHEET -->
+    <div class="pp-sheet" id="ppSheet">
+      <div class="pp-sheet-handle"></div>
+      <div class="pp-sheet-title">Daftar Bab</div>
+      <div class="pp-sheet-list" id="ppSheetList"></div>
+    </div>
+  
   </div>
   
   <!--  VIEW ROLLING CUSTOMER  -->
@@ -2032,6 +2227,7 @@
 <script src="perjanjian.js"></script>
 <script src="rollingcustomer.js"></script>
 <script type="module" src="profil.js"></script>
+<script type="module" src="peraturan.js"></script>
 <script src="ai-float-btn.js"></script>
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
