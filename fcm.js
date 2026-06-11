@@ -28,6 +28,7 @@ async function initFCM() {
     console.log("✅ FCM Token:", token);
 
     const user = auth.currentUser;
+    console.log("👤 current user:", user?.uid);
     if (!user) { console.log("❌ User belum login"); return; }
 
     await setDoc(
@@ -35,7 +36,7 @@ async function initFCM() {
       { fcmToken: token },
       { merge: true }
     );
-    console.log("✅ FCM token tersimpan");
+    console.log("✅ FCM token tersimpan untuk uid:", user.uid);
 
   } catch (err) {
     console.error("❌ initFCM:", err);
