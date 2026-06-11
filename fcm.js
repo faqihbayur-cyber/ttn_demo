@@ -1,10 +1,3 @@
-import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
-const VAPID_KEY = "BO7ialfKuwNOjNt1qIVheqCb06BvV6Z8FDGGN9B5AB4Dp51uQ6FIGuglKUVAWt3R4Ox17E14DZGnbe0TkDUBV0Y";
-
 async function initFCM() {
   try {
     const permission = await Notification.requestPermission();
@@ -42,5 +35,3 @@ async function initFCM() {
     console.error("❌ initFCM:", err);
   }
 }
-
-window.initFCM = initFCM;
