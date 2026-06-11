@@ -1,3 +1,10 @@
+import { getApp }      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth }     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const VAPID_KEY = "BO7ialfKuwNOjNt1qIVheqCb06BvV6Z8FDGGN9B5AB4Dp51uQ6FIGuglKUVAWt3R4Ox17E14DZGnbe0TkDUBV0Y";
+
 async function saveFcmToken(token) {
   try {
     const app  = getApp();
@@ -17,7 +24,7 @@ async function saveFcmToken(token) {
 }
 
 async function initFCM() {
-  // Kalau di WebView Android — pakai native token
+  // Kalau di WebView Android — tunggu native token
   window.onNativeFcmToken = async function(token) {
     console.log("📱 Native FCM token diterima:", token);
     await saveFcmToken(token);
@@ -29,7 +36,13 @@ async function initFCM() {
     return;
   }
 
-  // Fallback untuk browser biasa (bukan WebView)
+  // WebView tidak support Notification API — skip
+  if (typeof Notification === "undefined") {
+    console.log("⚠️ WebView — skip, tunggu native token");
+    return;
+  }
+
+  // Fallback browser biasa
   try {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
@@ -49,4 +62,5 @@ async function initFCM() {
     console.error("❌ initFCM:", err);
   }
 }
+
 window.initFCM = initFCM;
