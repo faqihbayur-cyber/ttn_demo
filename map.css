@@ -10,11 +10,13 @@
 .map-popup-container {
   width: 95%;
   max-width: 480px;
-  height: 800px;
+  height: 88vh;
+  max-height: 860px;
   border-radius: 16px;
   overflow: hidden;
   position: relative;
   box-shadow: 0 8px 32px #0005;
+  touch-action: none;
 }
 .map-popup-container #mapFullHome {
   height: 100%;
@@ -273,8 +275,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s linear;
+  transition: transform 0.1s ease-out;
   position: relative;
+  will-change: transform;
 }
 
 .kompas-n {
@@ -308,6 +311,8 @@
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .map-pin-user-off {
@@ -413,4 +418,27 @@
   background: #e8f0fe;
   color: #1a73e8;
   font-weight: 600;
+}
+
+/* Smooth rendering map container */
+#mapFullRouting {
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Cegah highlight tap pada kontrol map */
+.map-btn-kompas,
+.map-btn-tampil-pin,
+.map-badge-jumlah {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* Dropdown tidak trigger gesture map */
+.map-dropdown-pin,
+.map-dropdown-hari-pin {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }

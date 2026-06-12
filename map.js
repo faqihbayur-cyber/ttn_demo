@@ -54,14 +54,20 @@ window.openMapRouting = async function(idCustomer, dbName = "customerBaruDB", au
         center: { lat, lng },
         zoom: 18,
         mapId: "3f6f47bf59913618a195fe2e",
-        tilt: 45,
+        tilt: 0,
         heading: 0,
         mapTypeId: savedMapType,
-        zoomControl: true,
+        zoomControl: false,
         mapTypeControl: true,
-        streetViewControl: true,
-        rotateControl: true,
+        mapTypeControlOptions: {
+          style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+          position: google.maps.ControlPosition.TOP_RIGHT,
+        },
+        streetViewControl: false,
+        rotateControl: false,
         fullscreenControl: false,
+        gestureHandling: "greedy",
+        clickableIcons: false,
       });
 
       // Simpan saat user ganti tipe peta
@@ -174,10 +180,18 @@ window.openMapRouting = async function(idCustomer, dbName = "customerBaruDB", au
         return idx;
       }
 
+      let isPanning = false;
       function updateUserPosition(userLat, userLng) {
         const userLatLng = new google.maps.LatLng(userLat, userLng);
         userMarker.position = { lat: userLat, lng: userLng };
-        map.panTo(userLatLng);
+
+        // Smooth pan tanpa interrupt gesture user
+        if (!isPanning && !headingModeAktif) {
+          isPanning = true;
+          map.panTo(userLatLng);
+          setTimeout(() => { isPanning = false; }, 800);
+        }
+
         if (fullPath.length > 1) {
           const idx = findClosestIndex(fullPath, userLatLng);
           traversedPolyline.setPath(fullPath.slice(0, idx + 1));
@@ -185,10 +199,14 @@ window.openMapRouting = async function(idCustomer, dbName = "customerBaruDB", au
         }
       }
 
-      navigator.geolocation.getCurrentPosition(pos => {
-        map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        userMarker.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      });
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          userMarker.position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        },
+        err => console.log("GPS awal error:", err),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+      );
 
       const btnMulai = document.getElementById("btnMulaiNavigasiRouting");
       let navigasiAktif = false;
@@ -210,7 +228,7 @@ window.openMapRouting = async function(idCustomer, dbName = "customerBaruDB", au
         window._rollingWatchId = navigator.geolocation.watchPosition(
           pos => updateUserPosition(pos.coords.latitude, pos.coords.longitude),
           err => console.log("GPS error:", err),
-          { enableHighAccuracy: true, maximumAge: 2000 }
+          { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
         );
       }
 
@@ -713,22 +731,36 @@ window.openMapRouting = async function(idCustomer, dbName = "customerBaruDB", au
 
           headingModeAktif = true;
           btnKompas.classList.add("kompas-aktif");
-
-          // Aktifkan tilt 3D
           map.setTilt(45);
+
+          let lastHeading = 0;
+          let rafPending = false;
 
           deviceOrientationHandler = function (e) {
             let heading = null;
-            if (e.webkitCompassHeading !== undefined) {
+            if (typeof e.webkitCompassHeading === "number") {
               heading = e.webkitCompassHeading;
             } else if (e.alpha !== null) {
-              heading = 360 - e.alpha;
+              heading = (360 - e.alpha) % 360;
             }
             if (heading === null) return;
 
-            const jarum = document.getElementById("kompasJarumRouting");
-            if (jarum) jarum.style.transform = `rotate(${-heading}deg)`;
-            map.setHeading(heading);
+            // Smooth interpolasi heading
+            let delta = heading - lastHeading;
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            lastHeading += delta * 0.2; // easing factor
+            lastHeading = (lastHeading + 360) % 360;
+
+            if (!rafPending) {
+              rafPending = true;
+              requestAnimationFrame(() => {
+                const jarum = document.getElementById("kompasJarumRouting");
+                if (jarum) jarum.style.transform = `rotate(${-lastHeading}deg)`;
+                if (headingModeAktif) map.setHeading(lastHeading);
+                rafPending = false;
+              });
+            }
           };
           window.addEventListener("deviceorientation", deviceOrientationHandler, true);
 
@@ -746,7 +778,15 @@ window.openMapRouting = async function(idCustomer, dbName = "customerBaruDB", au
 
       map.addListener("click", () => {
         dropdownPin.style.display = "none";
+        dropdownHariPin.style.display = "none";
         document.getElementById("popupRincianPin").style.display = "none";
+      });
+
+      // Cegah touch pada kontrol map menyebar ke gesture peta
+      [badgeCustomer, btnTampilPin, btnKompas].forEach(el => {
+        el.addEventListener("touchstart", e => e.stopPropagation(), { passive: true });
+        el.addEventListener("touchmove", e => e.stopPropagation(), { passive: true });
+        el.addEventListener("touchend", e => e.stopPropagation(), { passive: true });
       });
 
       document.getElementById("btnTutupRincianPin").onclick = () => {
