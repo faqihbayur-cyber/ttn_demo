@@ -1037,6 +1037,17 @@ window.fetchUsersByCabang = async function () {
     // Simpan localStorage
     try {
       localStorage.setItem(LS_KEY, compressed);
+      // Sync ke header home
+      const headerHome = document.querySelector(".headerHome");
+      if (headerHome) {
+        const newCover = localStorage.getItem(LS_KEY);
+        if (newCover) {
+          headerHome.style.backgroundImage = `url(${newCover})`;
+          headerHome.style.backgroundSize = "cover";
+          headerHome.style.backgroundPosition = "center";
+          headerHome.style.backgroundRepeat = "no-repeat";
+        }
+      }
     } catch (err) {
       alert('Gambar terlalu besar. Coba area crop lebih kecil.');
       return;

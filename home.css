@@ -33,6 +33,47 @@
   position: relative;
   color: var(--home-header-text);
   transition: background 0.3s ease, color 0.3s ease;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.headerHome::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 30px 30px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35) 0%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.headerHome.has-cover::before {
+  opacity: 1;
+  backdrop-filter: blur(2px);
+}
+.headerHome::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-bottom: 5px solid var(--accent);
+  border-radius: 0 0 30px 30px;
+  pointer-events: none;
+  z-index: 2;
+}
+.headerHome.has-cover {
+  color: #fff !important;
+}
+
+.headerHome > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ── NOTIF & RELOAD BUTTONS ── */

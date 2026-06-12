@@ -15,6 +15,25 @@ window.initHomeView = async function(){
   const waktu = document.getElementById("homeWaktu");
   const reloadBtn = document.getElementById("homeReloadCustomerBtn");
   const role = (user.role || "").toLowerCase();
+
+  // Sync foto sampul ke header home
+  const headerHome = document.querySelector(".headerHome");
+  const savedCover = localStorage.getItem("ttn_cover_photo");
+  if (headerHome) {
+    if (savedCover) {
+      headerHome.style.backgroundImage = `url(${savedCover})`;
+      headerHome.style.backgroundSize = "cover";
+      headerHome.style.backgroundPosition = "center";
+      headerHome.style.backgroundRepeat = "no-repeat";
+      headerHome.classList.add("has-cover");
+    } else {
+      headerHome.style.backgroundImage = "";
+      headerHome.style.backgroundSize = "";
+      headerHome.style.backgroundPosition = "";
+      headerHome.style.backgroundRepeat = "";
+      headerHome.classList.remove("has-cover");
+    }
+  }
   
   const customerWrapper = document.querySelector(".home-customer-wrapper");
   const laporanKemarin = document.getElementById("cardLaporanKemarin");

@@ -57,9 +57,16 @@ window.initProfilView = async function() {
     btnHapus.addEventListener('click', () => {
       coverDropdown.classList.remove('open');
       localStorage.removeItem(LS_KEY);
-      // Kembalikan ke gradient awal
       if (heroBg) {
         heroBg.style.background = '';
+      }
+      // Sync hapus ke header home juga
+      const headerHome = document.querySelector(".headerHome");
+      if (headerHome) {
+        headerHome.style.backgroundImage = "";
+        headerHome.style.backgroundSize = "";
+        headerHome.style.backgroundPosition = "";
+        headerHome.style.backgroundRepeat = "";
       }
     });
   }
