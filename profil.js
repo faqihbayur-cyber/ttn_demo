@@ -35,6 +35,7 @@ window.initProfilView = async function() {
     btnGanti.dataset.listener = 'true';
     btnGanti.addEventListener('click', () => {
       coverDropdown.classList.remove('open');
+      if (window.AndroidBridge) AndroidBridge.setCoverPhotoMode(true);
       inputFile.click();
     });
   }
