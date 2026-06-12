@@ -460,15 +460,54 @@ function closeActivePopup(){
     "analysisDropdown",
     "slipDropOverlay",
     "slipDropPopup",
-    "aksesPanel"
+    "aksesPanel",
+    "mapPopupRouting",
+    "mapPopupHome",
+    "popupRincianPin"
   ];
 
   for(const id of popupIds){
     const el = document.getElementById(id);
     if(!el) continue;
-    const isActive = el.classList.contains("active") ||
-                     (id === "aksesPanel" && el.classList.contains("open"));
+
+    // Popup map pakai display flex/none, bukan class active
+    const isMapPopup = ["mapPopupRouting", "mapPopupHome", "popupRincianPin"].includes(id);
+    const isActive = isMapPopup
+      ? el.style.display === "flex"
+      : el.classList.contains("active") ||
+        (id === "aksesPanel" && el.classList.contains("open"));
+
     if(isActive){
+      if(isMapPopup){
+        // Tutup rincian pin dulu sebelum routing
+        if(id === "popupRincianPin"){
+          el.style.display = "none";
+        } else if(id === "mapPopupRouting"){
+          // Stop navigasi & GPS dulu
+          if(window._rollingWatchId){
+            navigator.geolocation.clearWatch(window._rollingWatchId);
+            window._rollingWatchId = null;
+          }
+          if(window.deviceOrientationHandler){
+            window.removeEventListener("deviceorientation", window.deviceOrientationHandler, true);
+            window.deviceOrientationHandler = null;
+          }
+          el.style.display = "none";
+          // Reset tombol mulai
+          const btnMulai = document.getElementById("btnMulaiNavigasiRouting");
+          if(btnMulai){
+            btnMulai.textContent = "▶ Mulai";
+            btnMulai.style.background = "";
+            btnMulai.style.display = "";
+          }
+          const infoEl = document.getElementById("infoJarakRouting");
+          if(infoEl) infoEl.style.display = "none";
+        } else if(id === "mapPopupHome"){
+          el.style.display = "none";
+          document.body.style.overflow = "";
+        }
+        return true;
+      }
       // Slip dropdown: close overlay + popup sekaligus
       if(id === "aksesPanel"){
         el.classList.remove("open");
