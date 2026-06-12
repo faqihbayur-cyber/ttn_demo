@@ -7,6 +7,7 @@ window.initCustomerView = function() {
   const searchInput = document.getElementById("searchCustomer");
   const suggestEl = document.getElementById("customerSuggest");
   const btnInputCustomer = document.querySelector(".btn-input-customer");
+  const btnMapHari = document.getElementById("btnMapHari");
 
   if (btnInputCustomer) {
     const now = new Date();
@@ -45,6 +46,12 @@ window.initCustomerView = function() {
   });
   window.loadCustomerFromIndexDB(selectedHari, "");
   window.syncPendingCustomer();
+
+  if (btnMapHari) {
+    btnMapHari.onclick = function() {
+      window.openMapRoutingHari(selectedHari);
+    };
+  }
   document.addEventListener("click", function(e) {
     if (!e.target.closest("#customerHari") && !e.target.closest("#hariMenu")) {
       hariMenu.classList.remove("active");
@@ -82,7 +89,67 @@ window.initCustomerView = function() {
     });
   });
 };
+window.openMapRoutingHari = async function(hari) {
+  try {
+    const db = await window.openAppDB();
+    const tx = db.transaction("customerHarianDB", "readonly");
+    const store = tx.objectStore("customerHarianDB");
+    const req = store.getAll();
 
+    req.onsuccess = async function() {
+      const raw = req.result || [];
+      let dataArray = [];
+      raw.forEach(item => {
+        if (item?.data && Array.isArray(item.data)) {
+          dataArray.push(...item.data);
+        } else {
+          dataArray.push(item);
+        }
+      });
+
+      // Dedupe
+      const seen = new Set();
+      dataArray = dataArray.filter(x => {
+        const cid = x.idCustomer || x.id;
+        if (!cid || seen.has(cid)) return false;
+        seen.add(cid);
+        return true;
+      });
+
+      // Filter hari
+      if (hari !== "Semua Hari") {
+        dataArray = dataArray.filter(x => x.hari === hari);
+      }
+
+      if (dataArray.length === 0) {
+        alert("Tidak ada customer untuk hari ini.");
+        return;
+      }
+
+      const lokasiValid = dataArray.find(x => {
+        const loc = window.normalizeGeoPoint(x.lokasiCustomer);
+        return loc?.lat && loc?.lng;
+      });
+
+      if (!lokasiValid) {
+        alert("Tidak ada customer dengan lokasi valid.");
+        return;
+      }
+
+      // Pakai openMapRouting biasa, tanpa autoStart
+      // Filter pin customerHarianDB akan restore otomatis via localStorage
+      localStorage.setItem("routingPinFilter", "customerHarianDB");
+      const cid = lokasiValid.idCustomer || lokasiValid.id;
+      window.openMapRouting(cid, "customerHarianDB", false);
+    };
+
+    req.onerror = function() {
+      alert("Gagal membuka data customer.");
+    };
+  } catch(err) {
+    console.log("openMapRoutingHari error:", err);
+  }
+};
 window.renderCustomer = function(hari, keyword = "", dataArray = []) {
   const listEl = document.getElementById("customerList");
   const totalEl = document.getElementById("customerTotal");
@@ -129,7 +196,7 @@ window.renderCustomer = function(hari, keyword = "", dataArray = []) {
             </svg>
           </button>
           <button class="customer-icon-btn"
-            onclick="openMapCustomerFromCache('${data.idCustomer}')">
+            onclick="window.openMapCustomerFromCache('${data.idCustomer}')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
               <path fill-rule="evenodd" d="m11.54 22.351.07.04.028.016a.76.76 0 0 0 .723 0l.028-.015.071-.041a16.975 16.975 0 0 0 1.144-.742 19.58 19.58 0 0 0 2.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 0 0-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 0 0 2.682 2.282 16.975 16.975 0 0 0 1.145.742ZM12 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd" />
             </svg>
@@ -205,21 +272,7 @@ window.loadCustomerFromIndexDB = async function(hari, keyword = "") {
   }
 };
 window.openMapCustomerFromCache = async function(idCustomer) {
-  const data = await window.getCustomerFromIndexDB(idCustomer);
-  if (!data) {
-    console.log("Customer tidak ditemukan di IndexedDB");
-    return;
-  }
-  const loc = window.normalizeGeoPoint(data.lokasiCustomer);
-  if (!loc) {
-    console.log("Lokasi tidak valid:", data.lokasiCustomer);
-    return;
-  }
-  const { lat, lng } = loc;
-  window.open(
-    `https://www.google.com/maps?q=${lat},${lng}`,
-    "_blank"
-  );
+  window.openMapRouting(idCustomer, "customerHarianDB");
 };
 window.openCatatanCustomer = function(data) {
   const popup = document.getElementById("popupCatatanCustomer");
@@ -434,36 +487,139 @@ window.inputCustomer = function() {
     customerLng = pos.coords.longitude;
     console.log("DEFAULT LOKASI:", customerLat, customerLng);
   });
-  const btnLokasi = document.getElementById("btnLokasi");
+  const btnLokasi     = document.getElementById("btnLokasi");
   const btnLokasiText = document.getElementById("btnLokasiText");
-  let lokasiSuccess = false;
+  let lokasiSuccess   = false;
+  let fullMapCustomer = null;
+
+  const mapPopup        = document.getElementById("mapPopupHome");
+  const btnSelectLoc    = document.getElementById("btnSelectLocationHome");
+  const btnTutupMap     = document.getElementById("btnTutupMapHome");
+
+  function openMapCustomer(lat, lng) {
+    mapPopup.style.display = "flex";
+    document.body.style.overflow = "hidden";
+
+    if (!fullMapCustomer) {
+      fullMapCustomer = new google.maps.Map(
+        document.getElementById("mapFullHome"), {
+          center: { lat, lng },
+          zoom: 18,
+          mapId: "3f6f47bf59913618a195fe2e",
+          tilt: 0,
+          zoomControl: true,
+          mapTypeControl: true,
+          streetViewControl: true,
+          fullscreenControl: false
+        }
+      );
+
+      if (!window.customerMarkerHome) {
+        window.customerMarkerHome = new google.maps.Marker({
+          position: { lat, lng },
+          map: fullMapCustomer,
+          draggable: true,
+          animation: google.maps.Animation.DROP,
+          icon: {
+            url: "pin.png",
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 40)
+          }
+        });
+      } else {
+        window.customerMarkerHome.setPosition({ lat, lng });
+        window.customerMarkerHome.setMap(fullMapCustomer);
+      }
+
+      // Long press handler
+      const mapDiv = document.getElementById("mapFullHome");
+      let lpTimer = null, lpMoved = false;
+      mapDiv.addEventListener("touchstart", e => {
+        if (e.touches.length !== 1) return;
+        lpMoved = false;
+        const touch = e.touches[0];
+        lpTimer = setTimeout(() => {
+          if (lpMoved) return;
+          const mapRect = mapDiv.getBoundingClientRect();
+          const overlay = new google.maps.OverlayView();
+          overlay.draw = function(){};
+          overlay.setMap(fullMapCustomer);
+          google.maps.event.addListenerOnce(overlay, "add", () => {
+            const proj   = overlay.getProjection();
+            const point  = new google.maps.Point(touch.clientX - mapRect.left, touch.clientY - mapRect.top);
+            const latLng = proj.fromContainerPixelToLatLng(point);
+            if (latLng) {
+              window.customerMarkerHome.setPosition(latLng);
+              fullMapCustomer.panTo(latLng);
+            }
+            overlay.setMap(null);
+          });
+        }, 600);
+      }, { passive: true });
+      mapDiv.addEventListener("touchmove",  () => { lpMoved = true; clearTimeout(lpTimer); }, { passive: true });
+      mapDiv.addEventListener("touchend",   () => clearTimeout(lpTimer), { passive: true });
+
+      // Tombol kembali ke GPS
+      const btnMyLoc = document.createElement("button");
+      btnMyLoc.innerHTML = `<img src="https://maps.gstatic.com/tactile/mylocation/mylocation-sprite-2x.png" style="width:18px;height:18px;">`;
+      btnMyLoc.style.cssText = `width:40px;height:40px;background:#fff;border:0;border-radius:4px;box-shadow:0 2px 6px #0003;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:10px;`;
+      btnMyLoc.onclick = () => {
+        fullMapCustomer.panTo({ lat, lng });
+        fullMapCustomer.setZoom(18);
+        window.customerMarkerHome.setPosition({ lat, lng });
+      };
+      fullMapCustomer.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(btnMyLoc);
+
+    } else {
+      fullMapCustomer.setCenter({ lat, lng });
+      window.customerMarkerHome.setPosition({ lat, lng });
+      window.customerMarkerHome.setMap(fullMapCustomer);
+    }
+  }
+
   btnLokasi.onclick = function() {
-    if (lokasiSuccess) return;
     btnLokasi.disabled = true;
-    btnLokasi.classList.add("loading");
-    btnLokasiText.innerText = "Mengambil Lokasi...";
+    btnLokasiText.innerText = "Mengambil...";
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        customerLat = pos.coords.latitude;
-        customerLng = pos.coords.longitude;
-        lokasiSuccess = true;
+      pos => {
         btnLokasi.disabled = false;
-        btnLokasi.classList.remove("loading");
-        btnLokasi.classList.add("success");
-        btnLokasiText.innerText = "Lokasi Sukses";
+        btnLokasiText.innerText = "Ambil Lokasi Sekarang";
+        openMapCustomer(pos.coords.latitude, pos.coords.longitude);
       },
       () => {
         btnLokasi.disabled = false;
-        btnLokasi.classList.remove("loading");
         btnLokasi.classList.add("error");
-        btnLokasiText.innerText = "Gagal";
-
+        btnLokasiText.innerText = "Gagal, Coba Lagi";
         setTimeout(() => {
           btnLokasi.classList.remove("error");
           btnLokasiText.innerText = "Ambil Lokasi Sekarang";
         }, 2000);
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+  };
+
+  btnSelectLoc.onclick = function(e) {
+    e.stopPropagation();
+    const pos  = window.customerMarkerHome.getPosition();
+    customerLat   = pos.lat();
+    customerLng   = pos.lng();
+    lokasiSuccess = true;
+    mapPopup.style.display   = "none";
+    document.body.style.overflow = "";
+    btnLokasi.classList.add("success");
+    btnLokasiText.innerText = "✓ Lokasi Dipilih";
+    fullMapCustomer = null; // reset agar map dibuat ulang saat dibuka lagi
+    window.customerMarkerHome = null;
+  };
+
+  btnTutupMap.onclick = function() {
+    mapPopup.style.display       = "none";
+    document.body.style.overflow = "";
+    btnLokasi.disabled           = false;
+    btnLokasiText.innerText      = "Ambil Lokasi Sekarang";
+    fullMapCustomer = null;
+    window.customerMarkerHome = null;
   };
   const fotoInput = document.getElementById("fotoInput");
   const fotoCard = document.getElementById("fotoCard");
@@ -487,8 +643,44 @@ window.inputCustomer = function() {
       const uid = window.auth.currentUser.uid;
       const user = window.currentUser || {};
       const namaCustomer = document.getElementById("inputNamaCustomer")?.value.trim() || "";
-      if (!namaCustomer) throw new Error("Nama customer kosong");
+      if (!namaCustomer) {
+        throw new Error("Nama customer wajib diisi");
+      }
+
+      // Cek duplikat nama di semua hari IndexedDB
+      try {
+        const idbCek = await window.openAppDB();
+        const allRaw = await new Promise((resolve, reject) => {
+          const tx    = idbCek.transaction("customerHarianDB", "readonly");
+          const store = tx.objectStore("customerHarianDB");
+          const req   = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror   = () => reject(req.error);
+        });
+        let allCustomer = [];
+        allRaw.forEach(item => {
+          if (Array.isArray(item.data)) allCustomer.push(...item.data);
+        });
+        const namaBaru = namaCustomer.toLowerCase().trim();
+        const duplikat = allCustomer.find(c =>
+          (c.namaCustomer || "").toLowerCase().trim() === namaBaru
+        );
+        if (duplikat) {
+          throw new Error(`Nama "${namaCustomer}" sudah ada di hari ${duplikat.hari}`);
+        }
+      } catch(err) {
+        throw err;
+      }
       const alamatCustomer = document.getElementById("alamatCustomer")?.value.trim() || "";
+      if (!alamatCustomer) {
+        throw new Error("Alamat wajib diisi");
+      }
+      if (!customerLat || !customerLng || !lokasiSuccess) {
+        throw new Error("Lokasi belum dipilih, tap Ambil Lokasi dulu");
+      }
+      if (!fotoBase64) {
+        throw new Error("Foto belum diambil");
+      }
       const hariNama = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const hari = hariNama[new Date().getDay()];
       let jarak = 0;
@@ -523,12 +715,42 @@ window.inputCustomer = function() {
       const idCustomer = crypto.randomUUID();
       let syncStatus = navigator.onLine ? "synced" : "pending";
 
+      // Upload foto ke Storage jika ada
+      let fotoUrl = "";
+      if (fotoBase64 && navigator.onLine) {
+        try {
+          // Compress dulu
+          const compressed = await new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+              const MAX = 800;
+              let w = img.width, h = img.height;
+              if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+              canvas.toBlob(b => resolve(b), "image/jpeg", 0.75);
+            };
+            img.src = fotoBase64;
+          });
+          const storageRef = window.storageRef(
+            window.storage,
+            `fotoCustomer/${idCustomer}`
+          );
+          await window.uploadBytes(storageRef, compressed, { contentType: "image/jpeg" });
+          fotoUrl = await window.getDownloadURL(storageRef);
+          console.log("📸 Foto uploaded:", fotoUrl);
+        } catch(err) {
+          console.log("❌ Upload foto gagal:", err);
+        }
+      }
+
       const dataCustomer = {
         idCustomer,
         namaCustomer,
         alamatCustomer,
         hari,
-        foto: fotoBase64 || "",
+        foto: fotoUrl,
         jarak,
         lokasiCustomer: new window.GeoPoint(customerLat || 0, customerLng || 0),
         idCabang: user.idCabang || "",
@@ -543,20 +765,15 @@ window.inputCustomer = function() {
       if (navigator.onLine) {
         try {
           await window.setDoc(
-            window.doc(
-              window.db,
-              "customer",
-              idCustomer
-            ),
+            window.doc(window.db, "customer", idCustomer),
             dataCustomer
           );
           syncStatus = "synced";
-          console.log("☁Firestore saved");
-        } catch(err){
-          console.log("Firestore gagal → pending", err
-          );
+          console.log("☁ Firestore saved");
+        } catch(err) {
+          console.log("Firestore gagal → pending", err);
         }
-      }else{
+      } else {
         console.log("Offline → pending sync");
       }
       const idb = await window.openAppDB();
@@ -599,23 +816,14 @@ window.inputCustomer = function() {
       btnSimpan.disabled = false;
       btnSimpan.classList.remove("loading");
       btnSimpan.classList.add("error");
-      btnSimpanText.innerText = "Gagal";
+      btnSimpanText.innerText = err.message || "Gagal";
       setTimeout(() => {
         btnSimpan.classList.remove("error");
         btnSimpanText.innerText = "Simpan";
-      }, 2000);
+      }, 3000);
     }
   };
 };
-document.addEventListener("click", function(e) {
-  const popup = document.getElementById("popupCustomer");
-  const content = document.getElementById("popupContent");
-  if (popup && popup.classList.contains("active")) {
-    if (!content.contains(e.target) && !e.target.closest(".btn-input-customer")) {
-      popup.classList.remove("active");
-    }
-  }
-});
 (function() {
   let startY = 0;
   let currentY = 0;
@@ -626,7 +834,17 @@ document.addEventListener("click", function(e) {
     const content = document.getElementById("popupContent");
     if (!popup || !content) return;
     if (!popup.classList.contains("active")) return;
+    // Stop jika touch di dalam map popup
+    if (e.target.closest("#mapPopupHome")) {
+      canSwipe = false;
+      return;
+    }
     if (e.target.closest("input, textarea, select")) {
+      canSwipe = false;
+      return;
+    }
+    // Hanya swipe dari dalam content
+    if (!e.target.closest("#popupContent")) {
       canSwipe = false;
       return;
     }

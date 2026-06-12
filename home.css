@@ -1,6 +1,27 @@
-/* ============================================
-   HOME.CSS - TTN MARKETING
-   ============================================ */
+
+/* ── SKELETON HOME CARDS ── */
+@keyframes skShimmer {
+  0%   { background-position: -400px 0 }
+  100% { background-position: 400px 0 }
+}
+.sk-line, .sk-box-sm, .sk-box-md, .sk-box-lg {
+  background: linear-gradient(90deg,
+    var(--border-color) 25%,
+    rgba(179,135,79,.15) 50%,
+    var(--border-color) 75%
+  );
+  background-size: 800px 100%;
+  animation: skShimmer 1.4s infinite linear;
+  border-radius: 10px;
+}
+#skeletonHomeCards   { padding: 0 15px }
+.sk-card-wrap        { background: var(--bg-card); border-radius: 24px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 12px var(--shadow-color) }
+.sk-title            { height: 16px; width: 120px; margin-bottom: 10px }
+.sk-subtitle         { height: 12px; width: 90px; margin-bottom: 14px; opacity: .6 }
+.sk-grid-2           { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px }
+.sk-box-sm           { height: 48px; border-radius: 12px }
+.sk-box-md           { height: 56px; border-radius: 12px; margin-bottom: 8px }
+.sk-box-lg           { height: 36px; border-radius: 10px; margin-top: 4px }
 
 /* ── HEADER ── */
 .headerHome {

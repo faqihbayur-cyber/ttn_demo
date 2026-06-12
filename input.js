@@ -137,10 +137,7 @@ window.initInputView = async function(){
       }  
     });  
   }
-
-  // Apply filter state saat pertama load
   updateFilterUI();
-
   let progressClosed = false;
   const hariNama = [
     "Minggu",
@@ -712,25 +709,7 @@ window.initInputView = async function(){
               <!-- MAP -->
               <button class="input-map-btn" onclick="
                 event.stopPropagation();
-                (function(){
-                  const data = window.customerDataMap['${customerId}'];
-                  if(!data) return console.log('Customer tidak ditemukan');
-              
-                  const loc = window.normalizeGeoPoint(data.lokasiCustomer);
-              
-                  const lat = loc?.lat;
-                  const lng = loc?.lng;
-              
-                  if (!lat || !lng) {
-                    console.log('Lokasi tidak valid');
-                    return;
-                  }
-              
-                  window.open(
-                    'https://www.google.com/maps?q=' + lat + ',' + lng,
-                    '_blank'
-                  );
-                })();
+                window.openMapRouting('${customerId}', 'customerHarianDB');
               ">
               
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">

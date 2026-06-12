@@ -1,1883 +1,1228 @@
-import { auth, db, storage } from "./index.js";
-import { initFCM } from "./fcm.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  getDocs,
-  getDoc,
-  setDoc,
-  addDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const DB_NAME        = 'laporanDistribusiDB';
-const STORE_NOTIF    = 'notifikasi';
-
-function logout() {
-  window.location.href = "login.html";
-}
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { logout(); return; }
-
-  try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    if (!userSnap.exists()) { logout(); return; }
-
-    const data = userSnap.data();
-    if (data.role !== "adminCabang") { logout(); return; }
-
-    // Ambil nama cabang
-    let namaCabang = "-";
-    if (data.idCabang) {
-      try {
-        const cabangSnap = await getDoc(doc(db, "kantorCabang", data.idCabang));
-        if (cabangSnap.exists()) namaCabang = cabangSnap.data().namaCabang || "-";
-      } catch (e) { console.log("Gagal ambil cabang", e); }
-    }
-
-    const nama    = data.nama || "Admin";
-    const foto    = data.foto || "";
-    const inisial = nama.trim().charAt(0).toUpperCase();
-
-    // Set nama & cabang
-    const namaEl   = document.getElementById("namaAdmin");
-    const cabangEl = document.getElementById("cabangAdmin");
-    if (namaEl)   namaEl.innerText   = nama;
-    if (cabangEl) cabangEl.innerText = namaCabang;
-
-    // Set inisial avatar (sidebar + header)
-    const avatarEl       = document.getElementById("avatarInitial");
-    const avatarHeaderEl = document.getElementById("avatarInitialHeader");
-    if (avatarEl)       avatarEl.innerText       = inisial;
-    if (avatarHeaderEl) avatarHeaderEl.innerText = inisial;
-
-    // Foto jika ada
-    const fotoEl = document.getElementById("fotoAdmin");
-    if (fotoEl && foto) {
-      fotoEl.src     = foto;
-      fotoEl.onload  = () => {
-        fotoEl.style.display = "block";
-        if (avatarEl)       avatarEl.style.display       = "none";
-        if (avatarHeaderEl) avatarHeaderEl.style.display = "none";
+window.initHomeView = async function(){
+  console.log("Home View");
+  const user = window.currentUser;
+  if(!user) return;
+  if (typeof window.initFCM === 'function') {
+    window.initFCM();
+  }
+  
+  const avatar = document.getElementById("homeAvatar");
+  const nama = document.getElementById("homeNama");
+  const motivasi = document.getElementById("homeMotivasi");
+  const kantor = document.getElementById("homeKantor");
+  const tanggal = document.getElementById("homeTanggal");
+  const waktu = document.getElementById("homeWaktu");
+  const reloadBtn = document.getElementById("homeReloadCustomerBtn");
+  const role = (user.role || "").toLowerCase();
+  
+  const customerWrapper = document.querySelector(".home-customer-wrapper");
+  const laporanKemarin = document.getElementById("cardLaporanKemarin");
+  const extraWrapper = document.querySelector(".home-extra-wrapper");
+  
+  // Customer hanya hunter
+  if (customerWrapper) {
+    customerWrapper.style.display =
+      role === "hunter"
+        ? "block"
+        : "none";
+  }
+  
+  // Laporan & Extra disembunyikan untuk hunter dan sales
+  const hideLaporanExtra =
+    role === "hunter" ||
+    role === "sales";
+  
+  if (laporanKemarin) {
+    laporanKemarin.style.display =
+      hideLaporanExtra
+        ? "none"
+        : "";
+  }
+  
+  if (extraWrapper) {
+    extraWrapper.style.display =
+      hideLaporanExtra
+        ? "none"
+        : "";
+  }
+  
+  if(nama){
+    nama.innerText = user.nama || "Marketing";
+  }
+  if(motivasi){
+    motivasi.innerText = user.motivasi || "Selamat bekerja dan semangat hari ini 🚀";
+  }
+  if(kantor){
+    kantor.innerHTML = `
+      <svg class="kantor-icon" viewBox="0 0 24 24">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13 c0-3.87-3.13-7-7-7zm0 9.5 c-1.38 0-2.5-1.12-2.5-2.5 S10.62 6.5 12 6.5 14.5 7.62 14.5 9 13.38 11.5 12 11.5z"/>
+      </svg>
+      Kantor:
+      ${user.kantorCabang || "-"}
+    `;
+  }
+  if(avatar){
+    const inisial =
+      (user.nama || "A")
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .substring(0,2);
+    if(user.fotoURL){
+      avatar.classList.add("has-photo");
+      avatar.innerHTML = `
+        <img src="${user.fotoURL} alt="${user.nama}">
+        <div class="avatar-inisial">
+          ${inisial}
+        </div>
+      `;
+      const img = avatar.querySelector("img");
+      img.onerror = () => {
+        avatar.classList.remove("has-photo");
+        avatar.innerHTML = `
+          <div class="avatar-inisial">
+            ${inisial}
+          </div>
+        `;
       };
-      fotoEl.onerror = () => {
-        fotoEl.style.display = "none";
-        if (avatarEl)       avatarEl.style.display       = "block";
-        if (avatarHeaderEl) avatarHeaderEl.style.display = "block";
-      };
-    }
 
-    // Greeting — setelah nama tersedia
-    const h  = new Date().getHours();
-    const gr = h < 11 ? "Selamat pagi"
-             : h < 15 ? "Selamat siang"
-             : h < 18 ? "Selamat sore"
-             : "Selamat malam";
-    const greetEl = document.getElementById("greetMsg");
-    if (greetEl) greetEl.innerHTML = `${gr}, <strong>${nama}</strong>`;
+    }else{
 
-    // Show dashboard, hide skeleton
-    const skeleton = document.getElementById("skeletonLoader");
-    if (skeleton) skeleton.style.display = "none";
-    const dashboard = document.getElementById("dashboard");
-    if (dashboard) dashboard.style.display = "block";
-
-    pgmCurrentUid      = user.uid;
-    initFCM();
-    _pengajuanCabangId = data.idCabang || '';
-    initNotifForUser(user.uid);
-    // Badge pengajuan — cek saat login
-    if (_pengajuanCabangId) {
-      getDocs(query(
-        collection(db, 'rolling'),
-        where('status',   '==', 'pending'),
-        where('idCabang', '==', _pengajuanCabangId)
-      )).then(snap => {
-        const dot = document.getElementById('pengajuanDot');
-        if (dot) dot.style.display = snap.empty ? 'none' : 'block';
-      }).catch(() => {});
-    }
-    console.log("✅ Admin Cabang Login:", nama);
-
-  } catch (err) {
-    console.error(err);
-    logout();
-  }
-});
-
-function updateDateTime() {
-  const now  = new Date();
-  const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-  const BLAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-  const hari = HARI[now.getDay()];
-  const tgl  = now.getDate();
-  const bln  = BLAN[now.getMonth()];
-  const thn  = now.getFullYear();
-  const hh   = String(now.getHours()).padStart(2,'0');
-  const mm   = String(now.getMinutes()).padStart(2,'0');
-
-  const dateEl = document.getElementById('headerDate');
-  const timeEl = document.getElementById('headerTime');
-  if (dateEl) dateEl.textContent = `${hari}, ${tgl} ${bln} ${thn}`;
-  if (timeEl) timeEl.textContent = `${hh}.${mm}`;
-}
-updateDateTime();
-setInterval(updateDateTime, 1000);
-
-// ── HEADER POPUPS ────────────────────────────────────────────
-(function initHeaderPopups() {
-  const popups = {
-    btnPengajuan:  'popupPengajuan',
-    btnCatatan:    'popupCatatan',
-    btnPengumuman: 'popupPengumuman',
-    btnNotifikasi: 'popupNotifikasi',
-  };
-  const overlay = document.getElementById('popupOverlay');
-
-  function openPopup(id) {
-    closeAll();
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.contains('popup-overlay')
-      ? el.classList.add('active')
-      : el.classList.add('open');
-    overlay.classList.add('open');
-  }
-  function closeAll() {
-    document.querySelectorAll('.header-popup').forEach(p => p.classList.remove('open'));
-    document.getElementById('popupCatatan')?.classList.remove('active');
-    overlay.classList.remove('open');
-  }
-
-  Object.entries(popups).forEach(([btnId, popupId]) => {
-    const btn = document.getElementById(btnId);
-    if (btn) btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const el = document.getElementById(popupId);
-      const isOpen = el?.classList.contains('open') || el?.classList.contains('active');
-      if (isOpen) { closeAll(); return; }
-      openPopup(popupId);
-      if (popupId === 'popupPengumuman') pgmShowTab('buat');
-      if (popupId === 'popupNotifikasi') notifShowTab('baru');
-      if (popupId === 'popupPengajuan')  loadPengajuan();
-    });
-  });
-
-  ['closePengajuan','closeCatatan','closePengumuman','closeNotifikasi'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.addEventListener('click', closeAll);
-  });
-
-  overlay.addEventListener('click', closeAll);
-  document.getElementById('popupCatatan')?.addEventListener('click', (e) => {
-    if (e.target === document.getElementById('popupCatatan')) closeAll();
-  });
-
-  // ── CURRENT USER (dari Firebase Auth) ───────────────────
-  let currentUser = null;
-  onAuthStateChanged(auth, (user) => {
-    currentUser = user;
-  });
-
-  async function loadCatatan() {
-    if (!currentUser) return;
-    try {
-      const snap = await getDoc(
-        doc(db, 'users', currentUser.uid)
+      // TANPA FOTO
+      avatar.classList.remove(
+        "has-photo"
       );
-      const data = snap.exists()
-        ? snap.data()
-        : {};
-      const catatan = data.catatanPribadi || {};
-      document.getElementById('catatan-input').value = catatan.teks || '';
-      document.getElementById('catatan-updated').textContent =
-        catatan.updatedAt
-          ? `Terakhir diubah: ${catatan.updatedAt}`
-          : 'Belum pernah disimpan';
-    } catch (err) {
-      console.error('Gagal load catatan:', err);
-      document.getElementById('catatan-updated').textContent = 'Gagal memuat catatan';
+
+      avatar.innerHTML = `
+        <div class="avatar-inisial">
+          ${inisial}
+        </div>
+      `;
     }
   }
-  document.getElementById('catatan-btn-simpan')
-  ?.addEventListener('click', async () => {
-    const btn   = document.getElementById('catatan-btn-simpan');
-    const input = document.getElementById('catatan-input');
-    if (!currentUser) return;
-    const teks = input.value.trim();
-    btn.disabled = true;
-    btn.textContent = 'Menyimpan...';
-    try {
-      const updatedAt = new Date().toLocaleString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      await setDoc(
-        doc(db, 'users', currentUser.uid),
+
+  // JAM REALTIME
+  function updateDateTime(){
+    const now = new Date();
+    const hariNama = [
+      "Minggu",
+      "Senin",
+      "Selasa",
+      "Rabu",
+      "Kamis",
+      "Jumat",
+      "Sabtu"
+    ];
+    const bulanNama = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember"
+    ];
+    if(tanggal){
+      tanggal.innerText =
+        `${hariNama[now.getDay()]}, ${now.getDate()} ${bulanNama[now.getMonth()]} ${now.getFullYear()}`;
+    }
+    if(waktu){
+      waktu.innerText = now.toLocaleTimeString(
+        "id-ID",
         {
-          catatanPribadi: {
-            teks,
-            updatedAt
-          }
-        },
-        { merge: true }
+          hour:"2-digit",
+          minute:"2-digit"
+        }
       );
-      document.getElementById('catatan-updated').textContent = `Terakhir diubah: ${updatedAt}`;
-      btn.textContent = '✅ Tersimpan';
-      setTimeout(() => {
-        btn.textContent = 'Simpan Perubahan';
-        btn.disabled = false;
-      }, 1500);
-    } catch (err) {
-      console.error('Gagal simpan catatan:', err);
-      btn.textContent = '❌ Gagal';
-      setTimeout(() => {
-        btn.textContent = 'Simpan Perubahan';
-        btn.disabled = false;
-      }, 1500);
     }
-  });
-  // reload setiap popup dibuka
-  document.getElementById('btnCatatan')
-  ?.addEventListener('click', loadCatatan);
-  document.getElementById('btnCatatan')?.addEventListener('click', () => loadCatatan());
+  }
+  if (reloadBtn) {
+    reloadBtn.onclick = async function () {
+      try {
+        reloadBtn.disabled = true;
+        reloadBtn.classList.add("loading");
+        const uid = window.auth.currentUser.uid;
+        const saveToIndexDB = async function (store, key, data) {
+          const db = await window.openAppDB();
+          return new Promise(
+            (resolve, reject) => {
+              const tx = db.transaction(store, "readwrite");
+              const os = tx.objectStore(store);
+              const req = os.put({
+                  id: key,
+                  data,
+                  updatedAt: Date.now()
+                });
+  
+              req.onsuccess = function () {
+                  console.group(`💾 IndexedDB saved → ${store}`);
+                  console.log("Key:", key);
+                  console.log("Updated At:",
+                    new Date().toLocaleString("id-ID")
+                  );
+                  console.log(
+                    "Total:",
+                    Array.isArray(data)
+                      ? data.length
+                      : 1
+                  );
+  
+                  console.groupEnd();
+                };
+  
+              req.onerror = function () {
+                  console.log(
+                    `❌ IndexedDB save gagal → ${store}`,
+                    req.error
+                  );
+                };
+              tx.oncomplete = () => resolve(true);
+              tx.onerror = () => reject(tx.error);
+            }
+          );
+        };
+        const hariNama = [
+          "Minggu",
+          "Senin",
+          "Selasa",
+          "Rabu",
+          "Kamis",
+          "Jumat",
+          "Sabtu"
+        ];
+  
+        const hariAktif = hariNama[new Date().getDay()];
+        const customerCacheKey = `${uid}_${hariAktif}`;
+        const userRef = window.doc(window.db, "users", uid);
+        const userSnap = await window.getDoc(userRef);
+        const userData = userSnap.exists() ? userSnap.data() : {};
+        window.globalUser = userData;
+        window.globalBawaBarang = userData.bawaBarang || [];
+        window.globalVarian = userData.varian || [];
+        await saveToIndexDB("usersDB", uid, userData);
+        console.log("👤 User loaded:", userData);
+        // FETCH KANTOR CABANG
+        const idCabang = userData.idCabang || "";
+        if (idCabang) {
+          try {
+            const kantorRef = window.doc(window.db, "kantorCabang", idCabang);
+            const kantorSnap = await window.getDoc(kantorRef);
+            if (kantorSnap.exists()) {
+              const kantorData = kantorSnap.data();
+              await saveToIndexDB("kantorDB", idCabang, kantorData);
+              window.globalKantor = kantorData;
+              console.log("🏢 Kantor loaded:", kantorData);
+            } else {
+              console.log("❌ Kantor tidak ditemukan:", idCabang);
+            }
+          } catch(err) {
+            console.log("❌ Gagal fetch kantorCabang:", err);
+          }
+        } else {
+          console.log("❌ idCabang kosong, skip fetch kantor");
+        }        
+        const customerQuery =
+          window.query(
+            window.collection(
+              window.db,
+              "customer"
+            ),
+            window.where(
+              "pemilik",
+              "==",
+              uid
+            ),
+            window.where(
+              "status",
+              "==",
+              true
+            ),
+            window.where(
+              "hari",
+              "==",
+              hariAktif
+            )
+          );
+  
+        const snap = await window.getDocs(customerQuery);
+        const customerData = snap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            lokasiCustomer: window.normalizeGeoPoint(data.lokasiCustomer)
+          };
+        });
+        window.customerCache = customerData;
 
-  // ── DRAG (mouse) ──────────────────────────────────────────
-  document.querySelectorAll('.header-popup').forEach(popup => {
-    const handle = popup.querySelector('.popup-drag-handle, .popup-handle');
-    let dragging = false, ox = 0, oy = 0;
+        // Hanya update customerHarianDB jika hari customer == hari aktif
+        // Supaya data hari lain tetap tersimpan dan tidak tertimpa
+        try {
+          const idb = await window.openAppDB();
 
-    handle.addEventListener('mousedown', e => {
-      dragging = true;
-      const rect = popup.getBoundingClientRect();
-      popup.style.transition = 'none';
-      popup.style.left  = rect.left + 'px';
-      popup.style.top   = rect.top  + 'px';
-      popup.style.right = 'auto';
-      ox = e.clientX - rect.left;
-      oy = e.clientY - rect.top;
-      e.preventDefault();
+          // Baca semua data existing dulu
+          const existingAll = await new Promise((resolve, reject) => {
+            const tx = idb.transaction("customerHarianDB", "readonly");
+            const store = tx.objectStore("customerHarianDB");
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+          });
+
+          // Buat map dari existing (key: id)
+          const existingMap = {};
+          existingAll.forEach(item => {
+            existingMap[item.id] = item;
+          });
+
+          // Cek existing untuk key ini
+          const existingEntry = existingMap[customerCacheKey] || null;
+          const existingData = existingEntry?.data || [];
+
+          // Filter customer dari hasil fetch yang harinya == hariAktif
+          const customerHariIni = customerData.filter(c => c.hari === hariAktif);
+
+          // Gabungkan: customer hari lain dari existing + customer hari ini dari fetch
+          const customerHariLain = existingData.filter(c => c.hari !== hariAktif);
+          const mergedData = [...customerHariLain, ...customerHariIni];
+
+          // Simpan merged
+          await new Promise((resolve, reject) => {
+            const tx = idb.transaction("customerHarianDB", "readwrite");
+            const store = tx.objectStore("customerHarianDB");
+            const req = store.put({
+              id: customerCacheKey,
+              data: mergedData,
+              updatedAt: Date.now()
+            });
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+
+          console.log(`✅ Customer ${hariAktif} refreshed: ${customerHariIni.length} baru, ${customerHariLain.length} lama dipertahankan`);
+
+        } catch(e) {
+          console.log("❌ Gagal simpan customerHarianDB:", e);
+        }
+        customerData.forEach((customer, index) => {
+          console.group(`📦 Customer ${
+              index + 1
+            } - ${
+              customer.namaCustomer ||
+              customer.id
+            }`
+          );
+          Object.entries(customer).forEach(([key, val]) => {
+              console.log(`${key}:`, val);
+            }
+          );
+          console.groupEnd();
+        });
+      } catch (err) {
+        console.log(err); alert("Gagal reload data");
+      } finally {
+        reloadBtn.disabled = false;
+        reloadBtn.classList.remove("loading");
+      }
+    };
+  }
+  updateDateTime();
+  if(!window.homeClock){
+    window.homeClock = setInterval(updateDateTime, 1000);
+  }
+  // Skeleton
+  const sk = document.getElementById('skeletonHomeCards');
+  if (customerWrapper) customerWrapper.style.display = 'none';
+  if (laporanKemarin)  laporanKemarin.style.display  = 'none';
+  if (extraWrapper)    extraWrapper.style.display    = 'none';
+
+  await Promise.all([
+    window.updateHomeStats?.(),
+    window.loadLaporanKemarin?.(),
+    window.loadRingkasanCustomer?.(),
+  ]);
+
+  if (sk) sk.style.display = 'none';
+  if (customerWrapper) customerWrapper.style.display = role === 'hunter' ? 'block' : 'none';
+  if (laporanKemarin)  laporanKemarin.style.display  = hideLaporanExtra ? 'none' : '';
+  if (extraWrapper)    extraWrapper.style.display    = hideLaporanExtra ? 'none' : '';
+};
+
+function countUp(el, target, duration = 600) {
+  if (!el) return;
+  const start = parseInt(el.innerText.replace(/\D/g, "")) || 0;
+  const diff = target - start;
+  if (diff === 0) return;
+  const startTime = performance.now();
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.innerText = Math.round(start + diff * ease);
+    if (progress < 1) requestAnimationFrame(step);
+    else el.innerText = target;
+  }
+  requestAnimationFrame(step);
+}
+function countUpRupiah(el, target, duration = 600) {
+  if (!el) return;
+  const raw = el.innerText.replace(/[^\d]/g, "");
+  const start = parseInt(raw) || 0;
+  const diff = target - start;
+  if (diff === 0) return;
+  const startTime = performance.now();
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(start + diff * ease);
+    el.innerText = "Rp " + current.toLocaleString("id-ID");
+    if (progress < 1) requestAnimationFrame(step);
+    else el.innerText = "Rp " + target.toLocaleString("id-ID");
+  }
+  requestAnimationFrame(step);
+}
+
+window.loadLaporanKemarin = async function() {
+  try {
+    // Hitung tanggal kemarin
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tanggalKemarin = yesterday.toISOString().split("T")[0];
+
+    const bulanNama = [
+      "Januari","Februari","Maret","April","Mei","Juni",
+      "Juli","Agustus","September","Oktober","November","Desember"
+    ];
+    const hariNama = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+
+    const tanggalLabel = `${hariNama[yesterday.getDay()]}, ${yesterday.getDate()} ${bulanNama[yesterday.getMonth()]} ${yesterday.getFullYear()}`;
+
+    const tanggalEl = document.getElementById("laporanKemarinTanggal");
+    if (tanggalEl) tanggalEl.innerText = tanggalLabel;
+
+    // Baca dari IndexedDB laporanMarketingDB
+    const idb = await window.openAppDB();
+    const data = await new Promise((resolve) => {
+      const tx = idb.transaction("laporanMarketingDB", "readonly");
+      const store = tx.objectStore("laporanMarketingDB");
+      const req = store.get(tanggalKemarin);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
     });
-    document.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      popup.style.left = (e.clientX - ox) + 'px';
-      popup.style.top  = (e.clientY - oy) + 'px';
-    });
-    document.addEventListener('mouseup', () => {
-      dragging = false;
-      popup.style.transition = '';
-    });
 
-    // ── SWIPE DOWN (mobile) ───────────────────────────────
-    let startY = 0, startTop = 0;
-    handle.addEventListener('touchstart', e => {
-      startY   = e.touches[0].clientY;
-      startTop = popup.getBoundingClientRect().top;
-      popup.style.transition = 'none';
-    }, { passive: true });
-    handle.addEventListener('touchmove', e => {
-      const dy = e.touches[0].clientY - startY;
-      if (dy > 0) popup.style.top = (startTop + dy) + 'px';
-    }, { passive: true });
-    handle.addEventListener('touchend', e => {
-      const dy = e.changedTouches[0].clientY - startY;
-      popup.style.transition = '';
-      if (dy > 80) closeAll();
-      else popup.style.top = startTop + 'px';
-    });
-  });
-})();
+    const omzetEl   = document.getElementById("laporanKemarinOmset");
+    const kasbonEl  = document.getElementById("laporanKemarinKasbon");
+    const potonganEl= document.getElementById("laporanKemarinPotongan");
+    const bonusEl   = document.getElementById("laporanKemarinBonus");
 
-const now = new Date();
-let chartMonth = now.getMonth();
-let chartYear  = now.getFullYear();
-const barLabels    = ['Jakarta','Surabaya','Bandung','Medan','Makassar','Semarang'];
-const barValues    = [42.8,38.5,31.2,24.1,27.6,22.4];
-const MONTHS       = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    if (!data) {
+      if (omzetEl)   omzetEl.innerText   = "0";
+      if (kasbonEl)  kasbonEl.innerText  = "0";
+      if (potonganEl)potonganEl.innerText = "0";
+      if (bonusEl)   bonusEl.innerText   = "0";
+      return;
+    }
 
-// CHARTS
-let lineChart;
-async function loadChartFromIndexedDB(month, year) {
-  const totalHari = new Date(year, month + 1, 0).getDate();
-  const orderData   = new Array(totalHari).fill(0);
-  const closingData = new Array(totalHari).fill(0);
-  const payData     = new Array(totalHari).fill(0);
-  const expiredData = new Array(totalHari).fill(0);
+    if (omzetEl)    omzetEl.innerText    = Number(data?.distribusi?.keuangan?.inputOmset || 0).toLocaleString("id-ID");
+    if (kasbonEl)   kasbonEl.innerText   = Number(data?.distribusi?.keuangan?.Kasbon || 0).toLocaleString("id-ID");
+    if (potonganEl) potonganEl.innerText = Number(data?.distribusi?.infoTarget?.potongan?.jumlahPotongan || 0).toLocaleString("id-ID");
+    if (bonusEl)    bonusEl.innerText    = Number(data?.distribusi?.keuangan?.bonus?.jumlahBonus || 0).toLocaleString("id-ID");
+
+  } catch(e) {
+    console.log("loadLaporanKemarin error:", e);
+  }
+};
+window.loadRingkasanCustomer = async function() {
+  const bodyEl = document.getElementById("ringkasanCustomerBody");
+  if (!bodyEl) return;
+
+  const hariNama = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
   try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('laporanDistribusiDB');
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = () => reject(req.error);
-    });
-
-    const store = db.transaction('laporanAdmin', 'readonly').objectStore('laporanAdmin');
-
-    const allRecords = await new Promise((resolve, reject) => {
+    const idb = await window.openAppDB();
+    const allRaw = await new Promise((resolve, reject) => {
+      const tx = idb.transaction("customerHarianDB", "readonly");
+      const store = tx.objectStore("customerHarianDB");
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
-      req.onerror   = () => reject(req.error);
+      req.onerror = () => reject(req.error);
     });
 
-    const prefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
-
-    allRecords.forEach(record => {
-      if (!record.tanggal?.startsWith(prefix)) return;
-      const day = Number(record.tanggal.split('-')[2]) - 1;
-      if (day < 0 || day >= totalHari) return;
-
-      const data = record.data || record; // support both {data:{...}} and flat
-
-      Object.entries(data).forEach(([, val]) => {
-        if (typeof val !== 'object' || !val?.nama) return; // skip non-uid fields
-
-        // Order — jumlahkan semua key
-        Object.values(val.order || {}).forEach(qty => {
-          orderData[day] += Number(qty) || 0;
-        });
-
-        // Closing — jumlahkan semua key
-        Object.values(val.pembayaran?.closing || {}).forEach(qty => {
-          closingData[day] += Number(qty) || 0;
-        });
-
-        // Pay — jumlahkan semua key kecuali "margin"
-        Object.entries(val.distribusi?.pay || {}).forEach(([key, qty]) => {
-          if (key === 'margin') return;
-          payData[day] += Number(qty) || 0;
-        });
-
-        // Expired — jumlahkan semua key kecuali "margin"
-        Object.entries(val.distribusi?.expired || {}).forEach(([key, qty]) => {
-          if (key === 'margin') return;
-          expiredData[day] += Number(qty) || 0;
-        });
-      });
-    });
-
-    db.close();
-  } catch (err) {
-    console.error('❌ loadChartFromIndexedDB:', err);
-  }
-
-  return { orderData, closingData, payData, expiredData };
-}
-function initLineChart(orderData, closingData, payData, expiredData, month, year) {
-  const totalHari = new Date(year, month + 1, 0).getDate();
-  const labels    = Array.from({ length: totalHari }, (_, i) => i + 1);
-
-  const ctx  = document.getElementById('lineChart').getContext('2d');
-  const gradOrder = ctx.createLinearGradient(0, 0, 0, 200);
-  gradOrder.addColorStop(0, 'rgba(201,166,123,.18)');
-  gradOrder.addColorStop(1, 'rgba(201,166,123,0)');
-  const gradClosing = ctx.createLinearGradient(0, 0, 0, 200);
-  gradClosing.addColorStop(0, 'rgba(123,175,138,.18)');
-  gradClosing.addColorStop(1, 'rgba(123,175,138,0)');
-  const gradPay = ctx.createLinearGradient(0, 0, 0, 200);
-  gradPay.addColorStop(0, 'rgba(100,149,210,.18)');
-  gradPay.addColorStop(1, 'rgba(100,149,210,0)');
-  const gradExpired = ctx.createLinearGradient(0, 0, 0, 200);
-  gradExpired.addColorStop(0, 'rgba(217,123,108,.18)');
-  gradExpired.addColorStop(1, 'rgba(217,123,108,0)');
-
-  if (lineChart) lineChart.destroy();
-  lineChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Order',
-          data: orderData,
-          borderColor: '#C9A67B',
-          backgroundColor: gradOrder,
-          borderWidth: 2.5, pointRadius: 3,
-          pointBackgroundColor: '#C9A67B',
-          pointBorderColor: '#fff', pointBorderWidth: 2,
-          tension: .35, fill: true
-        },
-        {
-          label: 'Closing',
-          data: closingData,
-          borderColor: '#7BAF8A',
-          backgroundColor: gradClosing,
-          borderWidth: 2.5, pointRadius: 3,
-          pointBackgroundColor: '#7BAF8A',
-          pointBorderColor: '#fff', pointBorderWidth: 2,
-          tension: .35, fill: true
-        },
-        {
-          label: 'Pay',
-          data: payData,
-          borderColor: '#6495D2',
-          backgroundColor: gradPay,
-          borderWidth: 2.5, pointRadius: 3,
-          pointBackgroundColor: '#6495D2',
-          pointBorderColor: '#fff', pointBorderWidth: 2,
-          tension: .35, fill: true
-        },
-        {
-          label: 'Expired',
-          data: expiredData,
-          borderColor: '#D97B6C',
-          backgroundColor: gradExpired,
-          borderWidth: 2.5, pointRadius: 3,
-          pointBackgroundColor: '#D97B6C',
-          pointBorderColor: '#fff', pointBorderWidth: 2,
-          tension: .35, fill: true
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top',
-          labels: { color: '#9B8E84', font: { size: 11 }, boxWidth: 10, usePointStyle: true }
-        },
-        tooltip: {
-          backgroundColor: '#3A312A', titleColor: '#E8DED2', bodyColor: '#fff',
-          padding: 10, cornerRadius: 8, displayColors: true,
-          callbacks: { label: c => ` ${c.dataset.label}: ${c.raw.toLocaleString('id-ID')}` }
-        }
-      },
-      scales: {
-        x: { grid: { color: '#F0EAE2' }, ticks: { color: '#9B8E84', font: { size: 10 } } },
-        y: { grid: { color: '#F0EAE2' }, ticks: { color: '#9B8E84', font: { size: 11 }, callback: v => v.toLocaleString('id-ID') }, beginAtZero: true }
+    // Flatten semua customer
+    let allCustomer = [];
+    allRaw.forEach(item => {
+      if (Array.isArray(item.data)) {
+        allCustomer.push(...item.data);
       }
-    }
-  });
-}
-async function loadAndRenderLineChart() {
-  const { orderData, closingData, payData, expiredData } = await loadChartFromIndexedDB(chartMonth, chartYear);
-  initLineChart(orderData, closingData, payData, expiredData, chartMonth, chartYear);
-  const metaEl = document.getElementById('lineChartMeta');
-  if (metaEl) metaEl.textContent = `${MONTHS[chartMonth]} ${chartYear}`;
-}
-async function loadBarChartFromIndexedDB(month, year) {
-  const SKIP_KEYS = new Set(['tanggal','updatedAt','createdAt','createdBy','idCabang','pengeluaranProduksi','pengeluaranDistribusi','stockOpname']);
-  const result = { barangHilang:0, basiFreezer:0, rusakFreezer:0, promosi:0, reject:0, fee:0, disable:0, offFlavor:0 };
-
-  try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('laporanDistribusiDB');
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = () => reject(req.error);
     });
-    const allRecords = await new Promise((resolve, reject) => {
-      const req = db.transaction('laporanAdmin','readonly').objectStore('laporanAdmin').getAll();
+
+    // Hitung per hari, dedupe by idCustomer per hari
+    const countPerHari = {};
+    hariNama.forEach(h => countPerHari[h] = new Set());
+
+    allCustomer.forEach(c => {
+      const hari = c.hari || "";
+      const cid = c.idCustomer || c.id || "";
+      if (hariNama.includes(hari) && cid) {
+        countPerHari[hari].add(cid);
+      }
+    });
+    // TOTAL SEMUA CUSTOMER (semua hari, tanpa duplikat)
+    const totalAllCustomer = new Set(
+      allCustomer
+        .map(c => c.idCustomer || c.id)
+        .filter(Boolean)
+    );
+    // Render — urut Senin-Minggu
+    const urutan = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+    const hariAktif = hariNama[new Date().getDay()];
+
+    bodyEl.innerHTML = `
+      <div class="extra-item total-customer-box">
+        <span>
+          <i class="dot gold"></i>
+          Total Semua Customer
+        </span>
+        <b>${totalAllCustomer.size} Customer</b>
+      </div>
+    ` + urutan.map(hari => {
+      const count = countPerHari[hari]?.size || 0;
+      const isToday = hari === hariAktif;
+      let statusClass = "";
+      let dotColor = "";
+      
+      if (count < 60) {
+        statusClass = "status-low";
+        dotColor = "red";
+      } 
+      else if (count <= 65) {
+        statusClass = "status-warning";
+        dotColor = "orange";
+      } 
+      else {
+        statusClass = "status-good";
+        dotColor = "green";
+      }      
+      return `
+        <div class="extra-item ${isToday ? "extra-item-today" : ""} ${statusClass}">
+          <span>
+            <i class="dot ${dotColor}"></i>
+            ${hari}
+          </span>
+          <b>${count} Customer</b>
+        </div>
+      `;
+    }).join("");
+
+  } catch(e) {
+    console.log("loadRingkasanCustomer error:", e);
+    bodyEl.innerHTML = `<div class="extra-item"><span>Gagal memuat</span></div>`;
+  }
+};
+window.updateHomeStats = async function() {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const uid = window.auth.currentUser?.uid;
+    if (!uid) return;
+
+    const db = await window.openAppDB();
+    const tx = db.transaction("customerBaruDB", "readonly");
+    const store = tx.objectStore("customerBaruDB");
+
+    const allData = await new Promise((resolve, reject) => {
+      const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
-      req.onerror   = () => reject(req.error);
+      req.onerror = () => reject(req.error);
     });
-    db.close();
 
-    const prefix = `${year}-${String(month + 1).padStart(2,'0')}-`;
-    allRecords.forEach(record => {
-      if (!record.tanggal?.startsWith(prefix)) return;
-      const data = record.data || record;
-      const so   = data.stockOpname || {};
+    // FILTER HARI INI
+    const todayData = allData.filter(x => x.tanggal === today);
 
-      Object.values(so.barangHilang || {}).forEach(v => { result.barangHilang += Number(v) || 0; });
-      Object.values(so.basiFreezer  || {}).forEach(v => { result.basiFreezer  += Number(v) || 0; });
-      Object.values(so.rusakFreezer || {}).forEach(v => { result.rusakFreezer += Number(v) || 0; });
-      Object.values(so.promosi      || {}).forEach(v => { result.promosi      += Number(v) || 0; });
-      Object.values(so.reject       || {}).forEach(v => { result.reject       += Number(v) || 0; });
+    // JUMLAH CUSTOMER
+    const jumlahCustomer = todayData.length;
 
-      Object.entries(data).forEach(([key, val]) => {
-        if (SKIP_KEYS.has(key) || !val || typeof val !== 'object') return;
-        Object.values(val.fee       || {}).forEach(v => { result.fee       += Number(v) || 0; });
-        Object.values(val.disable   || {}).forEach(v => { result.disable   += Number(v) || 0; });
-        Object.values(val.offFlavor || {}).forEach(v => { result.offFlavor += Number(v) || 0; });
+    // KONSINYASI & CASH
+    let totalKonsinyasi = 0;
+    let totalCash = 0;
+
+    todayData.forEach(item => {
+      // JUMLAH SEMUA VALUE DI konsinyasi
+      Object.values(item.konsinyasi || {}).forEach(val => {
+        totalKonsinyasi += Number(val || 0);
+      });
+      // JUMLAH SEMUA VALUE DI cash
+      Object.values(item.cash || {}).forEach(val => {
+        totalCash += Number(val || 0);
       });
     });
-  } catch (err) {
-    console.error('❌ loadBarChartFromIndexedDB:', err);
-  }
-  return result;
-}
-async function initBarChart() {
-  const d   = await loadBarChartFromIndexedDB(chartMonth, chartYear);
-  const labels = ['Barang Hilang','Basi Freezer','Rusak Freezer','Promosi','Reject','Fee','Disable','Off Flavor'];
-  const values = [d.barangHilang, d.basiFreezer, d.rusakFreezer, d.promosi, d.reject, d.fee, d.disable, d.offFlavor];
-  const colors = ['#D97B6C','#C9A67B','#A8845A','#7BAF8A','#6495D2','#B07EC4','#9B8E84','#E8A87C'];
 
-  const ctx = document.getElementById('barChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: {display: false},
-        tooltip: {
-          backgroundColor: '#3A312A', titleColor: '#E8DED2', bodyColor: '#fff',
-          padding: 10, cornerRadius: 8, displayColors: false,
-          callbacks: {label: c => c.raw.toLocaleString('id-ID')}
-        }
-      },
-      scales: {
-        x: {grid: {display: false}, ticks: {color: '#9B8E84', font: {size: 10}}},
-        y: {grid: {color: '#F0EAE2'}, ticks: {color: '#9B8E84', font: {size: 11}, callback: v => v.toLocaleString('id-ID')}, beginAtZero: true}
-      }
-    }
-  });
-}
-// Populate dropdown bulan & tahun
-(function populateChartDropdowns() {
-  const MONTHS_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  const monthTrigger = document.getElementById('monthSelTrigger');
-  const monthList    = document.getElementById('monthSelList');
-  const yearTrigger  = document.getElementById('yearSelTrigger');
-  const yearList     = document.getElementById('yearSelList');
+    // CLOSING
+    const totalClosing = totalKonsinyasi + totalCash;
 
-  // Build bulan
-  MONTHS_LABEL.forEach((m, i) => {
-    const div = document.createElement('div');
-    div.className = 'custom-sel-option' + (i === chartMonth ? ' selected' : '');
-    div.textContent = m;
-    div.addEventListener('click', () => {
-      chartMonth = i;
-      monthTrigger.textContent = m;
-      monthList.querySelectorAll('.custom-sel-option').forEach(o => o.classList.remove('selected'));
-      div.classList.add('selected');
-      document.getElementById('monthSelWrap').classList.remove('open');
-      loadAndRenderLineChart();
-      loadTableData();
-    });
-    monthList.appendChild(div);
-  });
-  monthTrigger.textContent = MONTHS_LABEL[chartMonth];
-
-  // Build tahun
-  const currentYear = new Date().getFullYear();
-  for (let y = currentYear + 1; y >= 2023; y--) {
-    const div = document.createElement('div');
-    div.className = 'custom-sel-option' + (y === chartYear ? ' selected' : '');
-    div.textContent = y;
-    div.addEventListener('click', () => {
-      chartYear = y;
-      yearTrigger.textContent = y;
-      yearList.querySelectorAll('.custom-sel-option').forEach(o => o.classList.remove('selected'));
-      div.classList.add('selected');
-      document.getElementById('yearSelWrap').classList.remove('open');
-      loadAndRenderLineChart();
-      loadTableData();
-    });
-    yearList.appendChild(div);
-  }
-  yearTrigger.textContent = chartYear;
-
-  // Toggle open/close
-  document.getElementById('monthSelTrigger').addEventListener('click', () => {
-    document.getElementById('monthSelWrap').classList.toggle('open');
-    document.getElementById('yearSelWrap').classList.remove('open');
-  });
-  document.getElementById('yearSelTrigger').addEventListener('click', () => {
-    document.getElementById('yearSelWrap').classList.toggle('open');
-    document.getElementById('monthSelWrap').classList.remove('open');
-  });
-
-  // Klik luar tutup dropdown
-  document.addEventListener('click', e => {
-    if (!e.target.closest('#monthSelWrap')) document.getElementById('monthSelWrap').classList.remove('open');
-    if (!e.target.closest('#yearSelWrap'))  document.getElementById('yearSelWrap').classList.remove('open');
-  });
-})();
-
-// ── AKTIVITAS TERBARU ─────────────────────────────────────────────────────────
-const SKIP_KEYS_ACT = new Set(['tanggal','updatedAt','createdAt','createdBy','idCabang','pengeluaranProduksi','pengeluaranDistribusi','stockOpname']);
-
-async function loadAktivitas() {
-  const items = [];
-
-  try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('laporanDistribusiDB');
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = () => reject(req.error);
-    });
-
-    // Ambil semua users dulu untuk mapping uid -> nama
-    const usersMap = {};
+    // UPAH HUNTER DARI KANTORDB
+    let upahHunter = 0;
     try {
-      const userRecords = await new Promise((resolve, reject) => {
-        const req = db.transaction('users','readonly').objectStore('users').getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror   = () => reject(req.error);
+      const user = window.currentUser || {};
+      const dbK = await window.openAppDB();
+      const txK = dbK.transaction("kantorDB", "readonly");
+      const storeK = txK.objectStore("kantorDB");
+      const kantorRaw = await new Promise(resolve => {
+        const r = storeK.get(user.idCabang || "");
+        r.onsuccess = () => resolve(r.result || null);
+        r.onerror = () => resolve(null);
       });
-      userRecords.forEach(u => { if (u.id && u.nama) usersMap[u.id] = u.nama; });
-    } catch(e) { console.warn('users store tidak ditemukan', e); }
+      console.log("🏢 kantorRaw:", kantorRaw);
+      const kantorData = kantorRaw?.data || kantorRaw;
+      console.log("🏢 kantorData:", kantorData);
+      console.log("💰 upahHunter raw:", kantorData?.target?.upahHunter);
+      upahHunter = Number(kantorData?.upahHunter || 0);
+    } catch(e) {
+      console.log("Gagal load upahHunter:", e);
+    }
 
-    // Ambil laporanAdmin
-    const allRecords = await new Promise((resolve, reject) => {
-      const req = db.transaction('laporanAdmin','readonly').objectStore('laporanAdmin').getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror   = () => reject(req.error);
-    });
-    db.close();
+    // TOTAL BAYARAN
+    const totalBayaran = jumlahCustomer * upahHunter;
 
-    // 2 hari terakhir
-    const today     = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const allowed = new Set([fmt(today), fmt(yesterday)]);
+    // UPDATE DOM
+    const elTotal = document.getElementById("homeCustomerTotal");
+    const elClosing = document.getElementById("homeClosingTotal");
+    const elKonsinyasi = document.getElementById("homeKonsinyasiTotal");
+    const elCash = document.getElementById("homeCashTotal");
+    const elBayaran = document.getElementById("homeTotalBayaran");
 
-    allRecords.forEach(record => {
-      if (!allowed.has(record.tanggal)) return;
-      const data = record.data || record;
+    countUp(elTotal, jumlahCustomer);
+    countUp(elClosing, totalClosing);
+    countUp(elKonsinyasi, totalKonsinyasi);
+    countUp(elCash, totalCash);
+    countUpRupiah(elBayaran, totalBayaran);
 
-      Object.entries(data).forEach(([uid, val]) => {
-        if (SKIP_KEYS_ACT.has(uid) || !val || typeof val !== 'object' || !val.nama) return;
-        const nama    = usersMap[uid] || val.nama || uid;
-        const tanggal = record.tanggal;
-
-        // Closing per key
-        Object.entries(val.pembayaran?.closing || {}).forEach(([key, qty]) => {
-          const jumlah = Number(qty) || 0;
-          if (!jumlah) return;
-          items.push({
-            type:    'closing',
-            dot:     'var(--green)',
-            text:    `<strong>${nama}</strong> closing <strong>${key}</strong> sebanyak <strong>${jumlah.toLocaleString('id-ID')}</strong>`,
-            tanggal,
-          });
-        });
-
-        // Nota per uid
-        const nota = val.pembayaran?.nota;
-        if (nota) {
-          const bayar      = Number(nota.bayar) || 0;
-          const keterangan = Number(nota.keterangan) || 0;
-          const status     = nota.status || '';
-          const total      = bayar + keterangan;
-          const isPlus     = keterangan >= 0;
-          const dotColor   = status === 'lunas' ? 'var(--green)' : status === 'batal' ? 'var(--red)' : 'var(--primary)';
-          const ketStr     = keterangan !== 0
-            ? ` <span style="color:${isPlus ? 'var(--green)' : 'var(--red)'};">(${isPlus ? '+' : ''}${keterangan.toLocaleString('id-ID')})</span>`
-            : '';
-          items.push({
-            type:    'nota',
-            dot:     dotColor,
-            text:    `<strong>${nama}</strong> nota <strong>Rp ${bayar.toLocaleString('id-ID')}</strong>${ketStr} — status <strong>${status}</strong>`,
-            tanggal,
-          });
-        }
-      });
-    });
-
-  } catch (err) {
-    console.error('❌ loadAktivitas:', err);
+  } catch(err) {
+    console.log("updateHomeStats error:", err);
   }
+};
+window.openHomeCustomerPopup = async function() {
+  const popup = document.getElementById("popupHomeCustomer");
+  const stokContainer = document.getElementById("stokContainerHome");
 
-  return items;
-}
-
-async function renderAktivitas() {
-  const el = document.querySelector('.activity-list');
-  if (!el) return;
-  el.innerHTML = `<div class="act-loading" style="padding:16px 0;color:var(--text-muted);font-size:13px;">Memuat aktivitas…</div>`;
-
-  const items = await loadAktivitas();
-
-  const reloadBtn = `
-    <button class="pgm-btn-reload" id="btnReloadHistory">
-      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-      Muat Ulang dari Server
-    </button>
-  `;
-  if (!items.length) {
-    document.getElementById('pgmHistoryList').innerHTML = reloadBtn + `<div class="pgm-history-empty">Belum ada pengumuman.</div>`;
-    document.getElementById('btnReloadHistory')?.addEventListener('click', () => fetchAndSyncNotif());
+  if (!popup || !stokContainer)
     return;
-  }
 
-  // Urutkan: hari ini dulu, lalu kemarin
-  const today = new Date();
-  const fmtD  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  items.sort((a, b) => (a.tanggal < b.tanggal ? 1 : -1));
+  // =========================
+  // BODY POPUP
+  // =========================
+  stokContainer.innerHTML = `
+    <div class="customer-form">
+      <!-- ALAMAT -->
+      <div class="popup-group">
+        <label>Alamat</label>
+        <input type="text" id="alamatCustomerHome" placeholder="Blok dan desa">
+      </div>
 
-  el.innerHTML = items.map(item => {
-    const label = item.tanggal === fmtD(today) ? 'Hari ini' : 'Kemarin';
-    return `
-      <div class="activity-item">
-        <span class="act-dot" style="background:${item.dot}"></span>
-        <div>
-          <div class="act-text">${item.text}</div>
-          <div class="act-time">${label}</div>
+      <!-- DATA AWAL -->
+      <div class="popup-group">
+        <label>Data Awal</label>
+        <div id="dataAwalContainerHome" class="data-awal-container">
         </div>
       </div>
-    `;
-  }).join('');
-}
 
-// ── TOP SALES ──────────────────────────────────────────
-async function loadTopSales() {
-  const result = {}; // uid -> { closing: 0 }
-
-  try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('laporanDistribusiDB');
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = () => reject(req.error);
-    });
-
-    // Users map uid -> { nama, role }
-    const usersMap = {};
-    try {
-      const userRecords = await new Promise((resolve, reject) => {
-        const req = db.transaction('users','readonly').objectStore('users').getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror   = () => reject(req.error);
-      });
-      userRecords.forEach(u => {
-        if (u.id) usersMap[u.id] = { nama: u.nama || u.id, role: u.role || '-' };
-      });
-    } catch(e) { console.warn('users store tidak ditemukan', e); }
-
-    // laporanAdmin — ambil semua kecuali hari ini
-    const allRecords = await new Promise((resolve, reject) => {
-      const req = db.transaction('laporanAdmin','readonly').objectStore('laporanAdmin').getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror   = () => reject(req.error);
-    });
-    db.close();
-
-    const today = new Date();
-    const fmtD  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const todayStr = fmtD(today);
-
-    allRecords.forEach(record => {
-      if (record.tanggal === todayStr) return; // skip hari ini
-      const data = record.data || record;
-
-      Object.entries(data).forEach(([uid, val]) => {
-        if (SKIP_KEYS_ACT.has(uid) || !val || typeof val !== 'object' || !val.nama) return;
-        if (!result[uid]) result[uid] = { closing: 0 };
-        Object.values(val.pembayaran?.closing || {}).forEach(v => {
-          result[uid].closing += Number(v) || 0;
-        });
-      });
-    });
-
-    // Gabungkan dengan usersMap
-    return Object.entries(result)
-      .map(([uid, d]) => ({
-        uid,
-        nama:    usersMap[uid]?.nama  || uid,
-        role:    usersMap[uid]?.role  || '-',
-        closing: d.closing,
-      }))
-      .filter(s => s.closing > 0)
-      .sort((a, b) => b.closing - a.closing);
-
-  } catch (err) {
-    console.error('❌ loadTopSales:', err);
-    return [];
-  }
-}
-async function renderTopSales() {
-  const el = document.getElementById('topSalesList');
-  if (!el) return;
-  el.innerHTML = `<div style="padding:16px 0;color:var(--text-muted);font-size:13px;">Memuat data…</div>`;
-
-  const sales = await loadTopSales();
-
-  if (!sales.length) {
-    el.innerHTML = `<div style="padding:16px 0;color:var(--text-muted);font-size:13px;">Belum ada data.</div>`;
-    return;
-  }
-
-  const max      = sales[0].closing;
-  const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-
-  el.innerHTML = sales.map((s, i) => `
-    <div class="sales-item">
-      <div class="sales-rank ${i === 0 ? 'gold' : ''}">${i + 1}</div>
-      <div class="sales-avatar">${initials(s.nama)}</div>
-      <div class="sales-info">
-        <div class="sales-name">${s.nama}</div>
-        <div class="sales-bar-wrap"><div class="sales-bar" style="width:${Math.round((s.closing/max)*100)}%"></div></div>
+      <!-- PAYMENT TYPE -->
+      <div class="payment-type-wrapper">
+        <button type="button" class="payment-type-btn" data-value="Konsinyasi">
+          Konsinyasi
+        </button>
+        <button type="button" class="payment-type-btn" data-value="Cash">
+          Cash
+        </button>
       </div>
-      <div class="sales-val">${s.closing.toLocaleString('id-ID')}<div class="sales-branch">${s.role}</div></div>
+
+      <!-- LOKASI -->
+      <button type="button" class="btn-lokasi" id="btnLokasiHome">
+        <span id="btnLokasiSpinnerHome" style="display:none;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;"></span>
+        <span id="btnLokasiTextHome">Ambil Lokasi Sekarang</span>
+      </button>
+
+      <!-- FOTO -->
+      <div class="foto-wrapper">
+        <label class="foto-card" id="fotoCardHome">
+          <input type="file" accept="image/*" capture="environment" id="fotoInputHome" hidden>
+          <div class="foto-placeholder">
+            <i class="fa-solid fa-camera"></i>
+            <span>Ambil Foto</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- BUTTON -->
+      <button type="button" class="btn-simpan-customer" id="btnSimpanCustomerHome">
+        <span id="btnSimpanTextHome">
+          Simpan
+        </span>
+      </button>
     </div>
-  `).join('');
-}
+  `;
 
-// ── TABLE ─────────────────────────────────────────────────────────────────────
-let tableData      = [];
-let filterTanggalDari  = '';
-let filterTanggalSampai = '';
-let filterStatus   = '';
-let filterRole     = '';
+  window.selectedPaymentType = null;
 
-function fmt(n) { return 'Rp ' + n.toLocaleString('id-ID'); }
-function statusBadge(s) {
-  const cls = s === 'lunas' ? 'lunas' : 'kurang';
-  const label = s === 'lunas' ? 'Lunas' : 'Kurang';
-  return `<span class="status-badge ${cls}">${label}</span>`;
-}
-function renderTable(data) {
-  const q = document.getElementById('searchInput').value.toLowerCase();
-  const filtered = data.filter(r =>
-    (!q             || [r.tanggal,r.nama,r.produk,r.status].some(v => String(v).toLowerCase().includes(q))) &&
-    (!filterTanggalDari   || r.tanggal >= filterTanggalDari) &&
-    (!filterTanggalSampai || r.tanggal <= filterTanggalSampai) &&
-    (!filterStatus  || r.status  === filterStatus) &&
-    (!filterRole    || r.role    === filterRole)
-  );
-  document.getElementById('transactionBody').innerHTML = filtered.length
-    ? filtered.map(r => `
-        <tr>
-          <td>${r.tanggal}</td>
-          <td>${r.nama}</td>
-          <td style="font-size:12px">${r.produk}</td>
-          <td style="font-weight:600">${fmt(r.pembayaran)}</td>
-          <td>${statusBadge(r.status)}</td>
-          <td style="color:${r.keterangan < 0 ? 'var(--red)' : r.keterangan > 0 ? 'var(--green)' : 'var(--text-muted)'}; font-weight:600">
-            ${r.keterangan !== 0 ? (r.keterangan > 0 ? '+' : '') + r.keterangan.toLocaleString('id-ID') : '-'}
-          </td>
-        </tr>
-      `).join('')
-    : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px">Tidak ada data</td></tr>`;
-}
-async function loadTableData() {
-  tableData = [];
   try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('laporanDistribusiDB');
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = () => reject(req.error);
+    const db = await window.openAppDB();
+    const tx = db.transaction("usersDB", "readonly");
+    const store = tx.objectStore("usersDB");
+    const uid = window.auth.currentUser.uid;
+    const userData = await new Promise(resolve => {
+      const req = store.get(uid);
+      req.onsuccess = () => resolve(
+          req.result?.data ||
+          null
+        );
+      req.onerror = () => resolve(null);
     });
+    const container = document.getElementById("dataAwalContainerHome");
+    const varian = Array.isArray(userData?.varian)
+     ? userData.varian : [];
 
-    const usersMap = {};
-    try {
-      const ur = await new Promise((resolve, reject) => {
-        const req = db.transaction('users','readonly').objectStore('users').getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror   = () => reject(req.error);
+    if (container && varian.length) {
+      let html = "";
+      varian.forEach(item => {
+        const key = Object.keys(item)[0];
+        if (!key) return;
+
+        html += `
+          <div class="data-awal-item">
+            <input type="number" class="data-awal-input" data-key="${key}" placeholder="${key}">
+          </div>
+        `;
       });
-      ur.forEach(u => { if (u.id) usersMap[u.id] = { nama: u.nama || u.id, role: u.role || '-' }; });
-    } catch(e) { console.warn('users store tidak ditemukan', e); }
-
-    const allRecords = await new Promise((resolve, reject) => {
-      const req = db.transaction('laporanAdmin','readonly').objectStore('laporanAdmin').getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror   = () => reject(req.error);
-    });
-    db.close();
-
-    allRecords.forEach(record => {
-      if (!record.tanggal) return;
-      const data = record.data || record;
-
-      Object.entries(data).forEach(([uid, val]) => {
-        if (SKIP_KEYS_ACT.has(uid) || !val || typeof val !== 'object' || !val.nama) return;
-
-        const user       = usersMap[uid] || {};
-        const nama       = user.nama  || val.nama || uid;
-        const role       = user.role  || '-';
-        const nota       = val.pembayaran?.nota || {};
-        const pembayaran = Number(nota.bayar      ?? 0);
-        const status     = (nota.status || '').toLowerCase();
-        const keterangan = Number(nota.keterangan ?? 0);
-
-        // Produk: closing key: value
-        const closing = val.pembayaran?.closing || {};
-        const produk  = Object.entries(closing)
-          .filter(([, v]) => Number(v) > 0)
-          .map(([k, v]) => `${k}: ${Number(v).toLocaleString('id-ID')}`)
-          .join(', ') || '-';
-
-        tableData.push({ tanggal: record.tanggal, nama, role, produk, pembayaran, status, keterangan });
-      });
-    });
-
-    // Urutkan terbaru dulu
-    tableData.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
-
-    // Populate dropdown tanggal
-    populateTanggalDropdown();
-
-  } catch (err) {
-    console.error('❌ loadTableData:', err);
-  }
-
-  renderTable(tableData);
-}
-function populateTanggalDropdown() {}
-// Custom select toggle
-function initCselDropdowns() {
-  ['Status','Role'].forEach(name => {
-    const wrap    = document.getElementById(`csel${name}Wrap`);
-    const trigger = document.getElementById(`csel${name}Trigger`);
-    if (!trigger) return;
-    trigger.addEventListener('click', e => {
-      e.stopPropagation();
-      const isOpen = wrap.classList.contains('open');
-      document.querySelectorAll('.csel-wrap').forEach(w => w.classList.remove('open'));
-      if (!isOpen) wrap.classList.add('open');
-    });
-  });
-
-  // ── Range Picker ────────────────────────────────────────────
-  let pickerStart  = null;
-  let pickerEnd    = null;
-  let pickerSelecting = 'start'; // 'start' | 'end'
-  let calViewYear  = new Date().getFullYear();
-  let calViewMonth = new Date().getMonth();
-
-  const overlay    = document.getElementById('custom-range-overlay');
-  const applyBtn   = document.getElementById('custom-range-apply');
-  const cancelBtn  = document.getElementById('custom-range-cancel');
-  const startLabel = document.getElementById('range-start-label');
-  const endLabel   = document.getElementById('range-end-label');
-  const DAYS       = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-  const BULAN      = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-
-  function fmtDisplay(str) {
-    if (!str) return null;
-    const [y,m,d] = str.split('-');
-    return `${d} ${BULAN[Number(m)-1]} ${y}`;
-  }
-  function renderCal() {
-    // Kiri = calViewMonth/calViewYear, Kanan = bulan berikutnya
-    const rightMonth = (calViewMonth + 1) % 12;
-    const rightYear  = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
-
-    document.getElementById('cal-left-label').textContent  = `${BULAN[calViewMonth]} ${calViewYear}`;
-    document.getElementById('cal-right-label').textContent = `${BULAN[rightMonth]} ${rightYear}`;
-
-    renderCalGrid('cal-left-grid',  calViewYear,  calViewMonth);
-    renderCalGrid('cal-right-grid', rightYear,    rightMonth);
-
-    startLabel.textContent = pickerStart ? fmtDisplay(pickerStart) : 'Pilih tanggal mulai';
-    endLabel.textContent   = pickerEnd   ? fmtDisplay(pickerEnd)   : 'Pilih tanggal akhir';
-    applyBtn.disabled      = !(pickerStart && pickerEnd);
-  }
-  function renderCalGrid(gridId, year, month) {
-    const grid      = document.getElementById(gridId);
-    const firstDay  = new Date(year, month, 1).getDay();
-    const totalDays = new Date(year, month + 1, 0).getDate();
-    let html = DAYS.map(d => `<div class="mini-cal-day-name">${d}</div>`).join('');
-
-    for (let i = 0; i < firstDay; i++) html += `<div class="mini-cal-day empty"></div>`;
-
-    for (let d = 1; d <= totalDays; d++) {
-      const val = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      let cls = 'mini-cal-day';
-      if (val === pickerStart || val === pickerEnd) cls += ' selected';
-      else if (pickerStart && pickerEnd && val > pickerStart && val < pickerEnd) cls += ' in-range';
-      html += `<div class="${cls}" data-val="${val}">${d}</div>`;
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = `
+        <div class="customer-empty">
+          Tidak ada data varian
+        </div>
+      `;
     }
-    grid.innerHTML = html;
 
-    grid.querySelectorAll('.mini-cal-day[data-val]').forEach(el => {
-      el.addEventListener('click', () => {
-        const v = el.dataset.val;
-        if (pickerSelecting === 'start' || (pickerStart && pickerEnd)) {
-          pickerStart     = v;
-          pickerEnd       = null;
-          pickerSelecting = 'end';
-        } else {
-          if (v < pickerStart) { pickerEnd = pickerStart; pickerStart = v; }
-          else                 { pickerEnd = v; }
-          pickerSelecting = 'start';
-        }
-        renderCal();
-      });
-    });
+  } catch(err) {
+    console.log("Gagal load varian:", err);
   }
 
-  // Prev / Next bulan
-  document.getElementById('cal-prev').addEventListener('click', () => {
-    calViewMonth--;
-    if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
-    renderCal();
-  });
-  document.getElementById('cal-next').addEventListener('click', () => {
-    calViewMonth++;
-    if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
-    renderCal();
-  });
-
-  // Buka modal
-  document.getElementById('btnOpenRangePicker').addEventListener('click', (e) => {
-    if (e.target.closest('#btnResetTanggal')) return;
-    overlay.classList.add('open');
-    renderCal();
-  });
-
-  // Tutup / batal
-  cancelBtn.addEventListener('click', () => overlay.classList.remove('open'));
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-
-  // Terapkan
-  applyBtn.addEventListener('click', () => {
-    filterTanggalDari   = pickerStart;
-    filterTanggalSampai = pickerEnd;
-    const label = document.getElementById('filterTanggalLabel');
-    label.textContent = `${fmtDisplay(pickerStart)} → ${fmtDisplay(pickerEnd)}`;
-    document.getElementById('btnResetTanggal').style.display = 'block';
-    overlay.classList.remove('open');
-    renderTable(tableData);
-  });
-
-  // Reset
-  document.getElementById('btnResetTanggal').addEventListener('click', (e) => {
-    e.stopPropagation();
-    filterTanggalDari   = '';
-    filterTanggalSampai = '';
-    pickerStart         = null;
-    pickerEnd           = null;
-    document.getElementById('filterTanggalLabel').textContent  = 'Semua Tanggal';
-    document.getElementById('btnResetTanggal').style.display   = 'none';
-    renderTable(tableData);
-  });
-
-  // Status options
-  document.getElementById('cselStatusList').querySelectorAll('.csel-option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      filterStatus = opt.dataset.val;
-      document.getElementById('cselStatusLabel').textContent = opt.textContent;
-      document.getElementById('cselStatusList').querySelectorAll('.csel-option').forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-      document.getElementById('cselStatusWrap').classList.remove('open');
-      renderTable(tableData);
-    });
-  });
-
-  // Role options
-  document.getElementById('cselRoleList').querySelectorAll('.csel-option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      filterRole = opt.dataset.val;
-      document.getElementById('cselRoleLabel').textContent = opt.textContent;
-      document.getElementById('cselRoleList').querySelectorAll('.csel-option').forEach(o => o.classList.remove('selected'));
-      opt.classList.add('selected');
-      document.getElementById('cselRoleWrap').classList.remove('open');
-      renderTable(tableData);
-    });
-  });
-
-  // Klik luar tutup semua
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.csel-wrap').forEach(w => w.classList.remove('open'));
-  });
-}
-
-document.getElementById('searchInput').addEventListener('input', () => renderTable(tableData));
-
-// ── POPUP PENGUMUMAN ───────────────────────────────────
-let pgmFotoBase64  = '';
-let pgmCurrentUid  = '';
-let pgmActiveTab   = 'buat';
-
-function pgmShowTab(tab) {
-  pgmActiveTab = tab;
-  document.getElementById('pgmTabBuat').classList.toggle('active',    tab === 'buat');
-  document.getElementById('pgmTabHistory').classList.toggle('active', tab === 'history');
-  document.getElementById('pengumumanPreview').style.display  = 'none';
-  document.getElementById('pengumumanForm').style.display     = tab === 'buat'    ? 'block' : 'none';
-  document.getElementById('pengumumanHistory').style.display  = tab === 'history' ? 'block' : 'none';
-  if (tab === 'history') loadPgmHistory();
-}
-
-document.getElementById('pgmTabBuat').addEventListener('click',    () => pgmShowTab('buat'));
-document.getElementById('pgmTabHistory').addEventListener('click', () => pgmShowTab('history'));
-
-function openDBWithNotif() {
-  return new Promise((resolve, reject) => {
-    const checkReq = indexedDB.open(DB_NAME);
-    checkReq.onsuccess = e => {
-      const existing = e.target.result;
-      const version  = existing.version;
-      const needs    = !existing.objectStoreNames.contains(STORE_NOTIF);
-      existing.close();
-      const req = indexedDB.open(DB_NAME, needs ? version + 1 : version);
-      req.onupgradeneeded = ev => {
-        const db = ev.target.result;
-        if (!db.objectStoreNames.contains(STORE_NOTIF)) {
-          db.createObjectStore(STORE_NOTIF, { keyPath: 'id' });
-        }
+  const paymentBtns = document.querySelectorAll(".payment-type-btn");
+  paymentBtns.forEach(btn => {
+    btn.onclick = function() {
+        paymentBtns.forEach(item =>
+          item.classList.remove("active")
+        );
+        this.classList.add("active");
+        window.selectedPaymentType = this.dataset.value;
+        console.log("Payment:",
+          window.selectedPaymentType
+        );
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror   = () => reject(req.error);
-    };
-    checkReq.onerror = () => reject(checkReq.error);
   });
-}
-async function saveNotifToIDB(id, data) {
-  const db = await openDBWithNotif();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE_NOTIF, 'readwrite')
-      .objectStore(STORE_NOTIF)
-      .put({ id, ...data });
-    req.onsuccess = () => { db.close(); resolve(); };
-    req.onerror   = () => { db.close(); reject(req.error); };
-  });
-}
-async function getAllNotifFromIDB() {
-  const db = await openDBWithNotif();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE_NOTIF, 'readonly')
-      .objectStore(STORE_NOTIF)
-      .getAll();
-    req.onsuccess = () => { db.close(); resolve(req.result || []); };
-    req.onerror   = () => { db.close(); reject(req.error); };
-  });
-}
+  popup.classList.add("active");
+  // BUTTON LOKASI + GOOGLE MAPS FULLSCREEN
+  let customerLat = null;
+  let customerLng = null;
+  let lokasiSuccess = false;
+  let fullMap = null;
 
-// ── state select mode ──────────────────────────────────
-let pgmSelectMode    = false;
-let pgmSelectedIds   = new Set();
+  const btnLokasiHome = document.getElementById("btnLokasiHome");
+  const btnLokasiTextHome = document.getElementById("btnLokasiTextHome");
+  const btnLokasiSpinnerHome = document.getElementById("btnLokasiSpinnerHome");
+  const mapPopupHome = document.getElementById("mapPopupHome");
+  const btnSelectLocationHome = document.getElementById("btnSelectLocationHome");
+  const btnTutupMapHome = document.getElementById("btnTutupMapHome");
 
-function pgmEnterSelectMode() {
-  pgmSelectMode = true;
-  document.getElementById('pgmHistoryList').classList.add('pgm-select-mode');
-  pgmUpdateDeleteBar();
-}
-function pgmExitSelectMode() {
-  pgmSelectMode  = false;
-  pgmSelectedIds = new Set();
-  document.getElementById('pgmHistoryList').classList.remove('pgm-select-mode');
-  // un-select semua item
-  document.querySelectorAll('.pgm-history-item.selected')
-    .forEach(el => el.classList.remove('selected'));
-  pgmUpdateDeleteBar();
-}
-function pgmUpdateDeleteBar() {
-  const bar  = document.getElementById('pgmDeleteBar');
-  const info = document.getElementById('pgmDeleteBarInfo');
-  const btn  = document.getElementById('pgmBtnHapus');
-  if (!bar) return;
-  if (pgmSelectMode) {
-    bar.classList.add('visible');
-    const n = pgmSelectedIds.size;
-    info.textContent = n ? `${n} dipilih` : 'Tahan item untuk memilih';
-    btn.disabled     = n === 0;
-  } else {
-    bar.classList.remove('visible');
-  }
-}
-function renderHistoryList(items) {
-  const listEl = document.getElementById('pgmHistoryList');
+  function openFullMap(lat, lng) {
+    mapPopupHome.style.display = "flex";
+    document.body.style.overflow = "hidden";
 
-  // Reset select state tiap render
-  pgmSelectMode  = false;
-  pgmSelectedIds = new Set();
-  listEl.classList.remove('pgm-select-mode');
-
-  if (!items.length) {
-    listEl.innerHTML = `
-      <button class="pgm-btn-reload" id="btnReloadHistory">
-        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/>
-          <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
-        </svg>
-        Muat Ulang dari Server
-      </button>
-      <div class="pgm-history-empty">Belum ada pengumuman.</div>
-    `;
-    document.getElementById('btnReloadHistory')
-      ?.addEventListener('click', () => fetchAndSyncNotif());
-    pgmUpdateDeleteBar();
-    return;
-  }
-
-  const sorted = [...items].sort((a, b) => {
-    const tA = a.createdAt?.seconds || a.createdAt || 0;
-    const tB = b.createdAt?.seconds || b.createdAt || 0;
-    return tB - tA;
-  });
-
-  const reloadBtn = `
-    <button class="pgm-btn-reload" id="btnReloadHistory">
-      <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/>
-        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
-      </svg>
-      Muat Ulang dari Server
-    </button>
-  `;
-
-  listEl.innerHTML = reloadBtn + sorted.map(dat => {
-    const dibaca  = dat.dibaca || {};
-    const total   = Object.keys(dibaca).length;
-    const sudah   = Object.values(dibaca).filter(Boolean).length;
-    const seconds = dat.createdAt?.seconds || dat.createdAt || 0;
-    const tgl     = seconds
-      ? new Date(seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-      : '—';
-    const fotoHtml = dat.foto ? `<img src="${dat.foto}" alt="">` : '';
-    return `
-      <div class="pgm-history-item" data-id="${dat.id}">
-        ${fotoHtml}
-        <div class="pgm-history-body">
-          <div class="pgm-history-title">${dat.judul || '—'}</div>
-          <div class="pgm-history-pesan">${dat.pesan || ''}</div>
-          <div class="pgm-history-meta">
-            <span>${tgl}</span>
-            <span class="pgm-history-dibaca">
-              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              ${sudah}/${total} dibaca
-            </span>
-          </div>
-        </div>
-        <div class="pgm-select-checkbox">
-          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // Delete bar (sticky di bawah list)
-  listEl.insertAdjacentHTML('afterend', `
-    <div class="pgm-delete-bar" id="pgmDeleteBar">
-      <span class="pgm-delete-bar-info" id="pgmDeleteBarInfo">Tahan item untuk memilih</span>
-      <div class="pgm-delete-bar-actions">
-        <button class="pgm-btn-cancel-select" id="pgmBtnCancelSelect">Batal</button>
-        <button class="pgm-btn-hapus" id="pgmBtnHapus" disabled>Hapus</button>
-      </div>
-    </div>
-  `);
-
-  pgmUpdateDeleteBar();
-
-  // ── Event listeners ────────────────────────────────────
-  document.getElementById('btnReloadHistory')
-    ?.addEventListener('click', () => fetchAndSyncNotif());
-
-  document.getElementById('pgmBtnCancelSelect')
-    ?.addEventListener('click', pgmExitSelectMode);
-
-  document.getElementById('pgmBtnHapus')
-    ?.addEventListener('click', pgmHapusSelected);
-
-  // Long press + tap tiap item
-  listEl.querySelectorAll('.pgm-history-item').forEach(el => {
-    let pressTimer = null;
-
-    const startPress = () => {
-      pressTimer = setTimeout(() => {
-        pressTimer = null;
-        if (!pgmSelectMode) pgmEnterSelectMode();
-        pgmToggleItem(el);
-      }, 500);
-    };
-    const cancelPress = () => {
-      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    };
-
-    el.addEventListener('touchstart',  startPress,  { passive: true });
-    el.addEventListener('touchend',    cancelPress);
-    el.addEventListener('touchmove',   cancelPress);
-    el.addEventListener('mousedown',   startPress);
-    el.addEventListener('mouseup',     cancelPress);
-    el.addEventListener('mouseleave',  cancelPress);
-
-    // Tap biasa → toggle select (hanya saat select mode aktif)
-    el.addEventListener('click', () => {
-      if (!pgmSelectMode) return;
-      pgmToggleItem(el);
-    });
-  });
-}
-function pgmToggleItem(el) {
-  const id = el.dataset.id;
-  if (!id) return;
-  if (pgmSelectedIds.has(id)) {
-    pgmSelectedIds.delete(id);
-    el.classList.remove('selected');
-  } else {
-    pgmSelectedIds.add(id);
-    el.classList.add('selected');
-  }
-  pgmUpdateDeleteBar();
-}
-// ── POPUP PENGAJUAN ────────────────────────────────────
-async function loadPengajuan() {
-  const body = document.getElementById('pengajuanBody');
-  if (!body) return;
-  body.innerHTML = `<p class="popup-placeholder">Memuat…</p>`;
-
-  try {
-    if (!_pengajuanCabangId) {
-      body.innerHTML = `<p class="popup-placeholder">Cabang tidak ditemukan.</p>`;
-      return;
-    }
-
-    const snap = await getDocs(
-      query(
-        collection(db, 'rolling'),
-        where('status',   '==', 'pending'),
-        where('idCabang', '==', _pengajuanCabangId)
-      )
-    );
-
-    const items = [];
-    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
-
-    // Update badge
-    const dot = document.getElementById('pengajuanDot');
-    if (dot) dot.style.display = items.length ? 'block' : 'none';
-
-    if (!items.length) {
-      body.innerHTML = `<p class="popup-placeholder">Tidak ada pengajuan pending.</p>`;
-      return;
-    }
-
-    // Sort terbaru dulu
-    items.sort((a, b) => {
-      const tA = a.createdAt?.seconds || 0;
-      const tB = b.createdAt?.seconds || 0;
-      return tB - tA;
-    });
-
-    body.innerHTML = items.map(n => {
-      const isHari    = n.type === 'hari';
-      const seconds   = n.createdAt?.seconds || 0;
-      const tgl       = seconds
-        ? new Date(seconds * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '—';
-      const requester = n.requestedBy?.nama || '—';
-
-      let detailHtml = '';
-      if (isHari) {
-        detailHtml = `${n.from?.hari || '?'} → ${n.to?.hari || '?'}`;
+    if (!fullMap) {
+      fullMap = new google.maps.Map(document.getElementById("mapFullHome"), {
+        center: { lat, lng },
+        zoom: 18,
+        mapId: "3f6f47bf59913618a195fe2e",
+        tilt: 0,
+        zoomControl: true,
+        mapTypeControl: true,
+        streetViewControl: true,
+        rotateControl: true,
+        fullscreenControl: false
+      });
+      
+      // PIN MARKER
+      if (!window.customerMarkerHome) {
+        window.customerMarkerHome = new google.maps.Marker({
+          position: { lat, lng },
+          map: fullMap,
+          draggable: true,
+          animation: google.maps.Animation.DROP,
+          icon: {
+            url: "pin.png",
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 40)
+          }
+        });
       } else {
-        const fromUser = n.from?.namaUser || '-';
-        const toUser   = n.to?.namaUser   || '-';
-        detailHtml = `${fromUser} → ${toUser}`;
+        window.customerMarkerHome.setPosition({ lat, lng });
+        window.customerMarkerHome.setMap(fullMap);
       }
-
-      const svgHari    = `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-      const svgPemilik = `<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
-
-      return `
-        <div class="pengajuan-item" data-id="${n.idCustomer || ''}" data-docid="${n.id}">
-          <div class="pengajuan-type-badge ${isHari ? 'hari' : 'pemilik'}">
-            ${isHari ? svgHari : svgPemilik}
-          </div>
-          <div class="pengajuan-body">
-            <div class="pengajuan-nama">${n.namaCustomer || '—'}</div>
-            <div class="pengajuan-detail">
-              <strong>${isHari ? 'Pindah Hari' : 'Pindah Pemilik'}</strong> · ${detailHtml}
-            </div>
-            <div class="pengajuan-meta">oleh ${requester} · ${tgl}</div>
-          </div>
-          <div class="pengajuan-arrow">
-            <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
+      
+      // LONG PRESS HANDLER
+      const mapDiv = document.getElementById("mapFullHome");
+      let lpTimer = null;
+      let lpMoved = false;
+      
+      mapDiv.addEventListener("touchstart", (e) => {
+        if (e.touches.length !== 1) return;
+        lpMoved = false;
+        const touch = e.touches[0];
+        lpTimer = setTimeout(() => {
+          if (lpMoved) return;
+          // Konversi pixel touch ke LatLng
+          const mapRect = mapDiv.getBoundingClientRect();
+          const x = touch.clientX - mapRect.left;
+          const y = touch.clientY - mapRect.top;
+          const overlay = new google.maps.OverlayView();
+          overlay.draw = function(){};
+          overlay.setMap(fullMap);
+          google.maps.event.addListenerOnce(overlay, "add", () => {
+            const proj = overlay.getProjection();
+            const point = new google.maps.Point(x, y);
+            const latLng = proj.fromContainerPixelToLatLng(point);
+            if (latLng) {
+              window.customerMarkerHome.setPosition(latLng);
+              fullMap.panTo(latLng);
+            }
+            overlay.setMap(null);
+          });
+        }, 600);
+      }, { passive: true });
+      
+      mapDiv.addEventListener("touchmove", () => {
+        lpMoved = true;
+        clearTimeout(lpTimer);
+      }, { passive: true });
+      
+      mapDiv.addEventListener("touchend", () => {
+        clearTimeout(lpTimer);
+      }, { passive: true });
+      
+      // TOMBOL BALIK KE POSISI GPS
+      const btnMyLocation = document.createElement("button");
+      btnMyLocation.innerHTML = `<img src="https://maps.gstatic.com/tactile/mylocation/mylocation-sprite-2x.png" style="width:18px;height:18px;background-size:cover;">`;
+      btnMyLocation.style.cssText = `
+        width:40px;height:40px;background:#fff;border:0;
+        border-radius:4px;box-shadow:0 2px 6px #0003;
+        cursor:pointer;display:flex;align-items:center;justify-content:center;
+        margin:10px;
       `;
-    }).join('');
-
-    // Klik → redirect ke customer.html
-    body.querySelectorAll('.pengajuan-item').forEach(el => {
-      el.addEventListener('click', () => {
-        const idCustomer = el.dataset.id;
-        if (idCustomer) {
-          window.location.href = `customer.html?id=${idCustomer}`;
-        }
-      });
-    });
-
-  } catch (err) {
-    console.error('❌ loadPengajuan:', err);
-    body.innerHTML = `<p class="popup-placeholder">Gagal memuat.</p>`;
-  }
-}
-
-// Simpan idCabang setelah auth
-let _pengajuanCabangId = '';
-async function getCabangId() { return _pengajuanCabangId; }
-
-// ── POPUP NOTIFIKASI ──────────────────────────────────────
-let notifCurrentUid = '';
-let notifActiveTab  = 'baru';
-
-async function initNotifForUser(uid) {
-  notifCurrentUid = uid;
-  await fetchAndSyncNotifCabang();
-  renderNotifBadge();
-}
-async function fetchAndSyncNotifCabang() {
-  try {
-    const snap = await getDocs(
-      query(collection(db, 'notifikasi'), where('type', '==', 'admin'))
-    );
-    for (const d of snap.docs) {
-      const dat = d.data();
-      if (!(notifCurrentUid in (dat.dibaca || {}))) continue;
-      await saveNotifToIDB(d.id, {
-        ...dat,
-        id: d.id,
-        createdAt: dat.createdAt?.seconds ?? (dat.createdAt || 0),
-      });
-    }
-  } catch (err) {
-    console.error('❌ fetchAndSyncNotifCabang:', err);
-  }
-}
-async function getNotifCabang() {
-  const all = await getAllNotifFromIDB();
-  return all.filter(n =>
-    n.type === 'admin' &&
-    notifCurrentUid in (n.dibaca || {})
-  );
-}
-function renderNotifBadge() {
-  getNotifCabang().then(items => {
-    const unread = items.filter(n => n.dibaca?.[notifCurrentUid] === false).length;
-    let dot = document.querySelector('#btnNotifikasi .notif-dot');
-    if (unread > 0) {
-      if (!dot) {
-        dot = document.createElement('span');
-        dot.className = 'notif-dot';
-        document.getElementById('btnNotifikasi').appendChild(dot);
-      }
+      btnMyLocation.onclick = () => {
+        fullMap.panTo({ lat, lng });
+        fullMap.setZoom(18);
+        window.customerMarkerHome.setPosition({ lat, lng });
+      };
+      fullMap.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(btnMyLocation);
     } else {
-      dot?.remove();
+      fullMap.setCenter({ lat, lng });
     }
-    const tabBadge = document.getElementById('notifBadgeTab');
-    if (tabBadge) {
-      tabBadge.textContent = unread || '';
-      tabBadge.classList.toggle('visible', unread > 0);
-    }
-  }).catch(() => {});
-}
-function notifShowTab(tab) {
-  notifActiveTab = tab;
-  document.getElementById('notifTabBaru')?.classList.toggle('active',    tab === 'baru');
-  document.getElementById('notifTabHistory')?.classList.toggle('active', tab === 'history');
-  loadNotifBody();
-}
+  }
 
-document.getElementById('notifTabBaru')
-  ?.addEventListener('click', () => notifShowTab('baru'));
-document.getElementById('notifTabHistory')
-  ?.addEventListener('click', () => notifShowTab('history'));
-
-async function loadNotifBody() {
-  const body = document.getElementById('notifBody');
-  if (!body) return;
-  body.innerHTML = `<p class="popup-placeholder">Memuat…</p>`;
-
-  try {
-    const items  = await getNotifCabang();
-    const sorted = [...items].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    const list   = notifActiveTab === 'baru'
-      ? sorted.filter(n => n.dibaca?.[notifCurrentUid] === false)
-      : sorted.filter(n => n.dibaca?.[notifCurrentUid] === true);
-
-    if (!list.length) {
-      body.innerHTML = `<p class="popup-placeholder">${
-        notifActiveTab === 'baru' ? 'Semua notifikasi sudah dibaca.' : 'Belum ada riwayat.'
-      }</p>`;
+  // KLIK AMBIL LOKASI
+  btnLokasiHome.onclick = function() {
+    if (!navigator.geolocation) {
+      btnLokasiTextHome.innerText = "GPS tidak didukung";
       return;
     }
 
-    body.innerHTML = list.map(n => {
-      const tgl = n.createdAt
-        ? new Date(n.createdAt * 1000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '—';
-      const fotoEl = n.foto
-        ? `<img class="notif-item-foto" src="${n.foto}" alt="">`
-        : `<div class="notif-item-icon">
-             <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-             </svg>
-           </div>`;
-      const dotEl    = notifActiveTab === 'baru' ? `<div class="notif-unread-dot"></div>` : '';
-      const tandaiEl = notifActiveTab === 'baru'
-        ? `<div class="notif-item-tandai">
-             <button class="notif-btn-tandai" data-id="${n.id}">Tandai dibaca</button>
-           </div>` : '';
-      return `
-        <div class="notif-item ${notifActiveTab === 'baru' ? 'unread' : ''}" data-id="${n.id}">
-          ${fotoEl}
-          <div class="notif-item-body">
-            <div class="notif-item-judul">${n.judul || '—'}</div>
-            <div class="notif-item-pesan">${n.pesan || ''}</div>
-            <div class="notif-item-tgl">${tgl}</div>
-            ${tandaiEl}
-          </div>
-          ${dotEl}
-        </div>
-      `;
-    }).join('');
+    btnLokasiHome.disabled = true;
+    btnLokasiSpinnerHome.style.display = "inline-block";
+    btnLokasiTextHome.innerText = "Mengambil...";
 
-    body.querySelectorAll('.notif-btn-tandai').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await notifTandaiDibaca(btn.dataset.id);
-      });
-    });
-
-  } catch (err) {
-    console.error('❌ loadNotifBody:', err);
-    body.innerHTML = `<p class="popup-placeholder">Gagal memuat.</p>`;
-  }
-}
-async function notifTandaiDibaca(id) {
-  try {
-    // Update Firestore
-    const ref  = doc(db, 'notifikasi', id);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const dibaca = snap.data().dibaca || {};
-      dibaca[notifCurrentUid] = true;
-      await setDoc(ref, { dibaca }, { merge: true });
-    }
-    // Update IndexedDB
-    const idb  = await openDBWithNotif();
-    const item = await new Promise((res, rej) => {
-      const req = idb.transaction(STORE_NOTIF, 'readonly')
-        .objectStore(STORE_NOTIF).get(id);
-      req.onsuccess = () => res(req.result);
-      req.onerror   = () => rej(req.error);
-    });
-    if (item) {
-      item.dibaca = item.dibaca || {};
-      item.dibaca[notifCurrentUid] = true;
-      await new Promise((res, rej) => {
-        const req = idb.transaction(STORE_NOTIF, 'readwrite')
-          .objectStore(STORE_NOTIF).put(item);
-        req.onsuccess = () => res();
-        req.onerror   = () => rej(req.error);
-      });
-    }
-    idb.close();
-    renderNotifBadge();
-    loadNotifBody();
-  } catch (err) {
-    console.error('❌ notifTandaiDibaca:', err);
-  }
-}
-
-async function pgmHapusSelected() {
-  if (!pgmSelectedIds.size) return;
-  const n   = pgmSelectedIds.size;
-  const ok  = confirm(`Hapus ${n} pengumuman? Tindakan ini tidak bisa dibatalkan.`);
-  if (!ok) return;
-
-  const btn = document.getElementById('pgmBtnHapus');
-  btn.disabled  = true;
-  btn.textContent = 'Menghapus…';
-
-  const ids = [...pgmSelectedIds];
-  const errs = [];
-
-  for (const id of ids) {
-    try {
-      // Hapus Firestore
-      await deleteDoc(doc(db, 'notifikasi', id));
-    } catch (err) {
-      console.warn('⚠️ Firestore delete gagal:', id, err);
-      errs.push(id);
-    }
-    try {
-      // Hapus IndexedDB
-      const idb = await openDBWithNotif();
-      await new Promise((res, rej) => {
-        const req = idb.transaction(STORE_NOTIF, 'readwrite')
-          .objectStore(STORE_NOTIF)
-          .delete(id);
-        req.onsuccess = () => { idb.close(); res(); };
-        req.onerror   = () => { idb.close(); rej(req.error); };
-      });
-    } catch (err) {
-      console.warn('⚠️ IDB delete gagal:', id, err);
-    }
-  }
-
-  if (errs.length) {
-    alert(`${errs.length} item gagal dihapus dari server. Cek koneksi & coba lagi.`);
-  }
-
-  pgmExitSelectMode();
-  await loadPgmHistory(); // refresh list
-}
-async function loadPgmHistory() {
-  const listEl = document.getElementById('pgmHistoryList');
-  listEl.innerHTML = `<div class="pgm-history-empty">Memuat…</div>`;
-  try {
-    const items = await getAllNotifFromIDB();
-    const mine  = items.filter(n => n.createdBy === pgmCurrentUid);
-    renderHistoryList(mine);
-  } catch (err) {
-    console.error('❌ loadPgmHistory IDB:', err);
-    listEl.innerHTML = `
-      <button class="pgm-btn-reload" id="btnReloadHistory">
-        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-        Muat Ulang dari Server
-      </button>
-      <div class="pgm-history-empty">Gagal memuat.</div>
-    `;
-    document.getElementById('btnReloadHistory')?.addEventListener('click', () => fetchAndSyncNotif());
-  }
-}
-async function fetchAndSyncNotif() {
-  const listEl = document.getElementById('pgmHistoryList');
-  const btn    = document.getElementById('btnReloadHistory');
-  if (btn) { btn.disabled = true; btn.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Memuat…`; }
-
-  try {
-    const snap = await getDocs(
-      query(
-        collection(db, 'notifikasi'),
-        where('createdBy', '==', pgmCurrentUid)
-      )
-    );
-    for (const d of snap.docs) {
-      const dat = d.data();
-      await saveNotifToIDB(d.id, {
-        ...dat,
-        createdAt: dat.createdAt?.seconds
-          ? dat.createdAt.seconds
-          : (dat.createdAt || 0),
-      });
-    }
-    const items = await getAllNotifFromIDB();
-    const mine  = items.filter(n => n.createdBy === pgmCurrentUid);
-    renderHistoryList(mine);
-  } catch (err) {
-    console.error('❌ fetchAndSyncNotif:', err);
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Muat Ulang dari Server`; }
-  }
-}
-
-// Foto input
-document.getElementById('pgmFotoPlaceholder').addEventListener('click', () => {
-  document.getElementById('pgmFotoInput').click();
-});
-document.getElementById('pgmFotoInput').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    pgmFotoBase64 = e.target.result;
-    document.getElementById('pgmFotoPreview').src     = pgmFotoBase64;
-    document.getElementById('pgmFotoPreview').style.display    = 'block';
-    document.getElementById('pgmFotoPlaceholder').style.display = 'none';
-    document.getElementById('pgmFotoRemove').style.display     = 'flex';
-  };
-  reader.readAsDataURL(file);
-});
-document.getElementById('pgmFotoRemove').addEventListener('click', () => {
-  pgmFotoBase64 = '';
-  document.getElementById('pgmFotoInput').value                = '';
-  document.getElementById('pgmFotoPreview').style.display      = 'none';
-  document.getElementById('pgmFotoPlaceholder').style.display  = 'flex';
-  document.getElementById('pgmFotoRemove').style.display       = 'none';
-});
-
-// Simpan
-document.getElementById('btnSimpanPengumuman').addEventListener('click', async () => {
-  const judul = document.getElementById('pgmJudul').value.trim();
-  const pesan = document.getElementById('pgmPesan').value.trim();
-  if (!judul || !pesan) {
-    alert('Judul dan pesan wajib diisi.');
-    return;
-  }
-
-  const btn = document.getElementById('btnSimpanPengumuman');
-  btn.disabled = true;
-  btn.innerHTML = `<span>Menyimpan…</span>`;
-
-  try {
-    const loadingEl = document.getElementById('pgmLoadingUsers');
-    loadingEl.style.display = 'flex';
-
-    const usersSnap = await getDocs(
-      query(collection(db, 'users'), where('createdBy', '==', pgmCurrentUid))
-    );
-
-    const dibaca = {};
-    usersSnap.forEach(d => { dibaca[d.id] = false; });
-    loadingEl.style.display = 'none';
-
-    // Upload foto ke Storage jika ada
-    let fotoUrl = '';
-    if (pgmFotoBase64) {
-      const res      = await fetch(pgmFotoBase64);
-      const blob     = await res.blob();
-
-      // Compress
-      const compressed = await new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX  = 800;
-          let w = img.width, h = img.height;
-          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          canvas.toBlob(b => resolve(b), 'image/jpeg', 0.75);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        btnLokasiSpinnerHome.style.display = "none";
+        btnLokasiHome.disabled = false;
+        // Buka map fullscreen
+        openFullMap(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        btnLokasiHome.disabled = false;
+        btnLokasiSpinnerHome.style.display = "none";
+        btnLokasiHome.style.background = "#e53935";
+        const pesanError = {
+          1: "Izin lokasi ditolak",
+          2: "Lokasi tidak tersedia",
+          3: "Timeout, coba lagi"
         };
-        img.src = pgmFotoBase64;
-      });
+        btnLokasiTextHome.innerText = pesanError[err.code] || "Gagal, Coba Lagi";
+        setTimeout(() => {
+          btnLokasiHome.style.background = "";
+          btnLokasiTextHome.innerText = "📍 Ambil Lokasi Sekarang";
+          btnLokasiHome.disabled = false;
+        }, 2500);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
-      const { ref, uploadBytes, getDownloadURL } =
-        await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js');
-      const storageRef = ref(storage, `FCMImages/${pgmCurrentUid}_${Date.now()}.jpg`);
-      await uploadBytes(storageRef, compressed, { contentType: 'image/jpeg' });
-      fotoUrl = await getDownloadURL(storageRef);
-    }
+  // KLIK "PILIH LOKASI" — ambil center map sebagai koordinat
+  btnSelectLocationHome.onclick = function(e) {
+    e.stopPropagation();
+    const pos = window.customerMarkerHome.getPosition();
+    customerLat = pos.lat();
+    customerLng = pos.lng();
+    lokasiSuccess = true;
+    mapPopupHome.style.display = "none";
+    document.body.style.overflow = "";
+    btnLokasiHome.style.background = "#4caf50";
+    btnLokasiTextHome.innerText = "✓ Lokasi Dipilih";
+    console.log("📍 Lokasi dipilih:", customerLat, customerLng);
+  };
 
-    const docRef = await addDoc(collection(db, 'notifikasi'), {
-      createdBy: pgmCurrentUid,
-      createdAt: serverTimestamp(),
-      type:      'kurir',
-      judul,
-      pesan,
-      foto:      fotoUrl,
-      dibaca,
-    });
+  // KLIK ✕ TUTUP MAP
+  btnTutupMapHome.onclick = function() {
+    mapPopupHome.style.display = "none";
+    document.body.style.overflow = "";
+    btnLokasiHome.disabled = false;
+    btnLokasiSpinnerHome.style.display = "none";
+    btnLokasiTextHome.innerText = "📍 Ambil Lokasi Sekarang";
+  };
 
-    // Simpan ke IndexedDB
-    await saveNotifToIDB(docRef.id, {
-      createdBy: pgmCurrentUid,
-      createdAt: Math.floor(Date.now() / 1000),
-      type:      'kurir',
-      judul,
-      pesan,
-      foto:      fotoUrl,
-      dibaca,
-    });
+  // FOTO PREVIEW
+  const fotoInputHome = document.getElementById("fotoInputHome");
+  const fotoCardHome = document.getElementById("fotoCardHome");
 
-    // Tampilkan preview
-    document.getElementById('pgmPreviewJudul').textContent = judul;
-    document.getElementById('pgmPreviewPesan').textContent = pesan;
-    document.getElementById('pgmPreviewMeta').textContent  =
-      `Dikirim ke ${Object.keys(dibaca).length} penerima · Baru saja`;
-    const previewFoto = document.getElementById('pgmPreviewFoto');
-    if (pgmFotoBase64) {
-      previewFoto.src           = pgmFotoBase64;
-      previewFoto.style.display = 'block';
-    } else {
-      previewFoto.style.display = 'none';
-    }
-
-    document.getElementById('pengumumanForm').style.display    = 'none';
-    document.getElementById('pengumumanPreview').style.display = 'block';
-
-  } catch (err) {
-    console.error('❌ Simpan pengumuman:', err);
-    alert('Gagal menyimpan. Coba lagi.');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Simpan & Kirim`;
-  }
-});
-
-// Buat baru — reset form
-document.getElementById('btnPengumumanBaru').addEventListener('click', () => {
-  document.getElementById('pgmJudul').value              = '';
-  document.getElementById('pgmPesan').value              = '';
-  pgmFotoBase64                                          = '';
-  document.getElementById('pgmFotoInput').value          = '';
-  document.getElementById('pgmFotoPreview').style.display      = 'none';
-  document.getElementById('pgmFotoPlaceholder').style.display  = 'flex';
-  document.getElementById('pgmFotoRemove').style.display       = 'none';
-  document.getElementById('pengumumanPreview').style.display   = 'none';
-  document.getElementById('pengumumanForm').style.display      = 'block';
-});
-
-// EXPORT
-document.getElementById('btnExcelExport').addEventListener('click', () => {
-  const ws = XLSX.utils.json_to_sheet(transactions.map(r => ({
-    Tanggal: r.tanggal, Cabang: r.cabang, Produk: r.produk,
-    Qty: r.qty, Revenue: r.revenue, Status: r.status
-  })));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Transaksi');
-  XLSX.writeFile(wb, 'transaksi-nusantara.xlsx');
-});
-document.getElementById('btnPdfExport').addEventListener('click', () => window.print());
-
-// INIT
-async function loadKPI() {
-  let omsetDistribusi = 0;
-  let omsetProduksi   = 0;
-
-  try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('laporanDistribusiDB');
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = () => reject(req.error);
-    });
-
-    const allRecords = await new Promise((resolve, reject) => {
-      const req = db.transaction('laporanAdmin','readonly').objectStore('laporanAdmin').getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror   = () => reject(req.error);
-    });
-    db.close();
-
-    if (!allRecords.length) return { omsetDistribusi, omsetProduksi };
-
-    // Ambil dokumen terbaru saja
-    const latest = allRecords.reduce((a, b) => (a.tanggal > b.tanggal ? a : b));
-    const data   = latest.data || latest;
-
-    Object.entries(data).forEach(([uid, val]) => {
-      if (SKIP_KEYS_ACT.has(uid) || !val || typeof val !== 'object' || !val.nama) return;
-      omsetDistribusi += Number(val.keuangan?.inputOmset  ?? 0);
-      omsetProduksi   += Number(val.pembayaran?.nota?.bayar ?? 0);
-    });
-
-  } catch (err) {
-    console.error('❌ loadKPI:', err);
-  }
-
-  return { omsetDistribusi, omsetProduksi };
-}
-async function renderKPI() {
-  const { omsetDistribusi, omsetProduksi } = await loadKPI();
-  const distEl = document.getElementById('kpiOmsetDistribusi');
-  const prodEl = document.getElementById('kpiOmsetProduksi');
-  if (distEl) distEl.textContent = 'Rp ' + omsetDistribusi.toLocaleString('id-ID');
-  if (prodEl) prodEl.textContent = 'Rp ' + omsetProduksi.toLocaleString('id-ID');
-}
-function setPageSubTitle() {
-  const now   = new Date();
-  const bulan = now.toLocaleString('id-ID', {month: 'long'});
-  const el    = document.getElementById('pageSubTitle');
-  if (el) el.textContent = `KPI Keuangan — ${bulan} ${now.getFullYear()}`;
-}
-
-renderAktivitas();
-loadAndRenderLineChart();
-initBarChart().then(() => {
-  const el = document.getElementById('barChartMeta');
-  if (el) el.textContent = `${MONTHS[chartMonth]} ${chartYear}`;
-});
-renderTopSales();
-loadTableData();
-initCselDropdowns();
-setPageSubTitle();
-renderKPI();
-
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("service-worker.js")
-      .then(reg => {
-        console.log("✅ Service Worker aktif", reg);
-      })
-      .catch(err => {
-        console.log("❌ Service Worker gagal", err);
-      });
+  fotoInputHome.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      fotoCardHome.innerHTML = `
+        <img src="${ev.target.result}"
+          style="width:100%;height:100%;object-fit:cover;border-radius:16px;">
+      `;
+      window.fotoBase64Home = ev.target.result;
+    };
+    reader.readAsDataURL(file);
   });
-}
+
+  // COMPRESS IMAGE
+  async function compressImageHome(base64) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement("canvas");
+        let w = img.width, h = img.height;
+        const maxSize = 800;
+        if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } }
+        else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.6));
+      };
+      img.src = base64;
+    });
+  }
+
+  // BUTTON SIMPAN
+  const btnSimpanHome = document.getElementById("btnSimpanCustomerHome");
+  const btnSimpanTextHome = document.getElementById("btnSimpanTextHome");
+
+  btnSimpanHome.onclick = async function() {
+    try {
+      btnSimpanHome.disabled = true;
+      btnSimpanTextHome.innerText = "Menyimpan...";
+
+      const uid = window.auth.currentUser.uid;
+      const user = window.currentUser || {};
+      const today = new Date().toISOString().split("T")[0];
+      const hariNama = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+      const hari = hariNama[new Date().getDay()];
+
+      // NAMA
+      const namaCustomer = document.getElementById("inputNamaCustomerHome")?.value.trim() || "";
+      if (!namaCustomer) throw new Error("Nama customer kosong");
+
+      // ALAMAT
+      const alamatCustomer = document.getElementById("alamatCustomerHome")?.value.trim() || "";
+
+      // PAYMENT TYPE
+      const paymentType = window.selectedPaymentType || "";
+      if (!paymentType) throw new Error("Pilih tipe pembayaran");
+
+      // DATA AWAL
+      const dataAwalInputs = document.querySelectorAll(".data-awal-input");
+      const dataAwal = {};
+      dataAwalInputs.forEach(input => {
+        const key = input.dataset.key;
+        const val = input.value.trim();
+        if (key && val !== "") dataAwal[key] = Number(val);
+      });
+
+      // LOAD VARIAN DARI INDEXDB
+      let varianMap = {};
+      try {
+        const idbV = await window.openAppDB();
+        const txV = idbV.transaction("usersDB", "readonly");
+        const storeV = txV.objectStore("usersDB");
+        const userDataV = await new Promise(resolve => {
+          const r = storeV.get(uid);
+          r.onsuccess = () => resolve(r.result?.data || null);
+          r.onerror = () => resolve(null);
+        });
+        (userDataV?.varian || []).forEach(item => {
+          const key = Object.keys(item)[0];
+          if (key) varianMap[key] = item[key];
+        });
+      } catch(e) {
+        console.log("Gagal load varian:", e);
+      }
+
+      // HITUNG KETERANGAN
+      let hargaPendam = 0;
+      let hargaJual = 0;
+      let cashback = 0;
+
+      Object.entries(dataAwal).forEach(([key, qty]) => {
+        const varian = varianMap[key] || {};
+        hargaPendam += qty * Number(varian.hargaProduksi || 0);
+        hargaJual   += qty * Number(varian.hargaKonsumen || 0);
+        cashback    += qty * Number(varian.hargaKonsumen || 0);
+      });
+
+      const keterangan = {};
+      if (paymentType === "Konsinyasi") {
+        keterangan.modal = { hargaPendam, hargaJual };
+      } else if (paymentType === "Cash") {
+        keterangan.cashback = cashback;
+      }
+
+      // HITUNG JARAK pakai Google Distance Matrix
+      let jarak = 0;
+      try {
+        const idbK = await window.openAppDB();
+        const txK = idbK.transaction("kantorDB", "readonly");
+        const storeK = txK.objectStore("kantorDB");
+        const kantorRaw = await new Promise(resolve => {
+          const r = storeK.get(user.idCabang || "");
+          r.onsuccess = () => resolve(r.result || null);
+          r.onerror = () => resolve(null);
+        });
+        const kantorData = kantorRaw?.data || kantorRaw;
+
+        if (kantorData && customerLat && customerLng) {
+          const locRaw = kantorData.lokasiCabang;
+          const loc = window.normalizeGeoPoint(locRaw);
+
+          if (loc) {
+            // Coba Distance Matrix dulu, fallback ke Haversine
+            jarak = await new Promise(async resolve => {
+              try {
+                const { RoutesClient } = await google.maps.importLibrary("routes");
+                const result = await new RoutesClient().computeRouteMatrix({
+                  origins: [{
+                    waypoint: { location: { latLng: { latitude: loc.lat, longitude: loc.lng } } }
+                  }],
+                  destinations: [{
+                    waypoint: { location: { latLng: { latitude: customerLat, longitude: customerLng } } }
+                  }],
+                  travelMode: "DRIVE"
+                });
+                const meters = result?.[0]?.distanceMeters || 0;
+                resolve(Number((meters / 1000).toFixed(2)));
+              } catch(e) {
+                // Fallback Haversine
+                const toRad = v => v * Math.PI / 180;
+                const R = 6371;
+                const dLat = toRad(customerLat - loc.lat);
+                const dLng = toRad(customerLng - loc.lng);
+                const a = Math.sin(dLat/2)**2 + Math.cos(toRad(loc.lat)) * Math.cos(toRad(customerLat)) * Math.sin(dLng/2)**2;
+                resolve(Number((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(2)));
+              }
+            });
+          }
+        }
+      } catch(e) {
+        console.log("Gagal hitung jarak:", e);
+      }
+
+      // Siapkan compressed foto (upload setelah dapat idCustomer)
+      let compressedFoto = null;
+      if (window.fotoBase64Home) {
+        compressedFoto = await compressImageHome(window.fotoBase64Home);
+      }
+
+      // ID CUSTOMER dibuat setelah addDoc
+      let idCustomer = "";
+      let foto = "";
+
+      // DATA CUSTOMER (tanpa foto dulu)
+      const dataCustomer = {
+        idCustomer,
+        namaCustomer,
+        alamatCustomer,
+        tanggal: today,
+        hari,
+        foto,
+        idCabang: user.idCabang || "",
+        createdBy: uid,
+        jarak,
+        [paymentType.toLowerCase()]: dataAwal,
+        keterangan,
+        diserahkan: false
+      };
+
+      // SAVE FIRESTORE
+      const colRef = window.collection(
+        window.db,
+        "users", uid,
+        "customerBaruHunter"
+      );
+      const docRef = await window.addDoc(colRef, {
+        ...dataCustomer,
+        lokasiCustomer: new window.GeoPoint(customerLat || 0, customerLng || 0),
+        createdAt: window.serverTimestamp()
+      });
+      idCustomer = docRef.id;
+
+      // UPLOAD FOTO KE STORAGE setelah dapat idCustomer
+      if (compressedFoto) {
+        const storageRef = window.storageRef(
+          window.storage,
+          `fotoCustomer/${idCustomer}`
+        );
+        const blob = await fetch(compressedFoto).then(r => r.blob());
+        await window.uploadBytes(storageRef, blob, {
+          contentType: "image/jpeg"
+        });
+        foto = await window.getDownloadURL(storageRef);
+      }
+
+      // UPDATE idCustomer + foto URL ke Firestore
+      await window.updateDoc(docRef, { idCustomer, foto });
+      console.log("☁️ Firestore saved, id:", idCustomer);
+
+      // SAVE INDEXDB
+      const idb = await window.openAppDB();
+      const txIdb = idb.transaction("customerBaruDB", "readwrite");
+      const storeIdb = txIdb.objectStore("customerBaruDB");
+      storeIdb.put({
+        ...dataCustomer,
+        id: idCustomer,
+        foto,
+        lokasiCustomer: window.normalizeGeoPoint(
+          new window.GeoPoint(customerLat || 0, customerLng || 0)
+        ),
+        createdAt: Date.now()
+      });
+      console.log("💾 IndexDB saved");
+
+      window.updateHomeStats();
+      btnSimpanTextHome.innerText = "Sukses ✓";
+      btnSimpanHome.style.background = "#4caf50";
+
+      setTimeout(() => {
+        popup.classList.remove("active");
+        btnSimpanHome.style.background = "";
+        btnSimpanTextHome.innerText = "Simpan";
+        btnSimpanHome.disabled = false;
+        window.fotoBase64Home = null;
+      }, 800);
+
+    } catch(err) {
+      console.log(err);
+      btnSimpanHome.disabled = false;
+      btnSimpanHome.style.background = "#e53935";
+      btnSimpanTextHome.innerText = err.message || "Gagal";
+      setTimeout(() => {
+        btnSimpanHome.style.background = "";
+        btnSimpanTextHome.innerText = "Simpan";
+      }, 2000);
+    }
+  };
+};
+
+(function() {
+  let startY = 0;
+  let currentY = 0;
+  let isDragging = false;
+  let canSwipe = false;
+
+  document.addEventListener("touchstart",
+    function(e) {
+      const popup = document.getElementById("popupHomeCustomer");
+      const content = document.getElementById("popupHomeCustomerContent");
+      if (!popup || !content)
+        return;
+      if (!popup.classList.contains("active"))
+        return;
+      if (e.target.closest("#mapPopupHome")) {
+        canSwipe = false;
+        return;
+      }
+      if (e.target.closest("input, textarea, select")){
+        canSwipe = false;
+        return;
+      }
+      if (content.scrollTop > 0) {
+        canSwipe = false;
+        return;
+      }
+      canSwipe = true;
+      isDragging = true;
+      startY = e.touches[0].clientY;
+      currentY = startY;
+      content.style.transition = "none";
+    },
+    { passive: true }
+  );
+
+  document.addEventListener("touchmove", function(e) {
+      if (
+        !isDragging ||
+        !canSwipe
+      ) return;
+      const content = document.getElementById("popupHomeCustomerContent");
+      if (!content) return;
+      currentY = e.touches[0].clientY;
+      const moveY = currentY - startY;
+      if (moveY > 0) {
+        content.style.transform = `translateY(${moveY}px)`;
+      }
+    },
+    { passive: true }
+  );
+  document.addEventListener("touchend",
+    function() {
+      if (
+        !isDragging ||
+        !canSwipe
+      ) return;
+      const popup = document.getElementById("popupHomeCustomer");
+      const content = document.getElementById("popupHomeCustomerContent");
+      if (!content) return;
+      const moveY = currentY - startY;
+      content.style.transition = "0.3s ease";
+
+      if (moveY > 120) {
+        content.style.transform = "translateY(100%)";
+        setTimeout(() => {
+          popup.classList.remove("active");
+          content.style.transform = "";
+        }, 250);
+      } else {
+        content.style.transform = "";
+      }
+      isDragging = false;
+      canSwipe = false;
+    }
+  );
+})();

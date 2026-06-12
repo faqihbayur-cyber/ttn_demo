@@ -33,6 +33,32 @@ CUSTOMER PAGE
   font-weight:700;
   color: var(--home-menu-icon);
 }
+.customer-item {
+  position: relative;
+}
+
+.btn-map-hari {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #e8f0fe;
+  border: 0;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #1a73e8;
+  font-size: 16px;
+  transition: background 0.2s;
+}
+
+.btn-map-hari:hover {
+  background: #d2e3fc;
+}
 .customer-total{
   font-size:15px;
   font-weight:700;
