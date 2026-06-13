@@ -628,8 +628,56 @@ window.inputCustomer = function() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(ev) {
-      fotoBase64 = ev.target.result;
-      fotoCard.innerHTML = `<img src="${fotoBase64}" class="foto-preview">`;
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement("canvas");
+        canvas.width  = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+
+        // Gambar foto asli
+        ctx.drawImage(img, 0, 0);
+
+        // Data watermark
+        const namaCustomer = document.getElementById("inputNamaCustomer")?.value.trim() || "-";
+        const now    = new Date();
+        const tgl    = now.toLocaleDateString("id-ID", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+        const jam    = now.toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+        const lokasi = (customerLat && customerLng)
+          ? `${customerLat.toFixed(6)}, ${customerLng.toFixed(6)}`
+          : "Lokasi belum diambil";
+
+        const alamat = document.getElementById("alamatCustomer")?.value.trim() || "-";
+        const lines = [
+          namaCustomer,
+          alamat,
+          `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}  ${lokasi}`
+        ];
+
+        // Ukuran font responsif
+        const fontSize = Math.max(11, Math.round(img.width / 55));
+        const padding  = fontSize * 0.6;
+        const lineH    = fontSize * 1.5;
+        const barH     = lines.length * lineH + padding * 2;
+
+        const barY = img.height - barH - Math.round(img.height * 0.20);
+
+        // Teks putih
+        ctx.fillStyle    = "#ffffff";
+        ctx.font         = `bold ${fontSize}px Arial`;
+        ctx.shadowColor  = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur   = 4;
+        ctx.textBaseline = "middle";
+
+        lines.forEach((line, i) => {
+          const y = barY + padding + (i * lineH) + lineH / 2;
+          ctx.fillText(line, padding, y);
+        });
+
+        fotoBase64 = canvas.toDataURL("image/jpeg", 0.85);
+        fotoCard.innerHTML = `<img src="${fotoBase64}" class="foto-preview">`;
+      };
+      img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   });
@@ -693,16 +741,21 @@ window.inputCustomer = function() {
           r.onsuccess = () => resolve(r.result?.data || null);
           r.onerror = () => resolve(null);
         });
+        console.log("kantorData:", kantorData);
+        console.log("idCabang:", user.idCabang);
         if (kantorData) {
           const lokasiCabang = kantorData.lokasiCabang;
+          console.log("lokasiCabang:", lokasiCabang);
           if (lokasiCabang && customerLat && customerLng) {
             const toRad = (v) => v * Math.PI / 180;
             const R = 6371;
-            const dLat = toRad(customerLat - lokasiCabang.latitude);
-            const dLng = toRad(customerLng - lokasiCabang.longitude);
+            const cabangLat = lokasiCabang._lat ?? lokasiCabang.latitude;
+            const cabangLng = lokasiCabang._long ?? lokasiCabang.longitude;
+            const dLat = toRad(customerLat - cabangLat);
+            const dLng = toRad(customerLng - cabangLng);
             const a =
               Math.sin(dLat / 2) ** 2 +
-              Math.cos(toRad(lokasiCabang.latitude)) *
+              Math.cos(toRad(cabangLat)) *
               Math.cos(toRad(customerLat)) *
               Math.sin(dLng / 2) ** 2;
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
